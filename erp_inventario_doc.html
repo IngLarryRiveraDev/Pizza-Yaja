@@ -1,0 +1,765 @@
+<title>Módulo de Inventario — Pizza Yaja ERP</title>
+<style>
+/* ── Tokens ── */
+:root {
+  --bg:          #f8fafc;
+  --surface:     #ffffff;
+  --text:        #0f172a;
+  --muted:       #64748b;
+  --accent:      #1e3a8a;
+  --accent-mid:  #2563eb;
+  --accent-lite: #dbeafe;
+  --red:         #b91c1c;
+  --border:      #e2e8f0;
+  --code-bg:     #0f172a;
+  --code-text:   #cbd5e1;
+  --code-kw:     #7dd3fc;
+  --code-str:    #86efac;
+  --code-cmt:    #475569;
+  --code-fn:     #fde68a;
+  --num:         #2563eb;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:          #0c111d;
+    --surface:     #131c2e;
+    --text:        #e2e8f0;
+    --muted:       #94a3b8;
+    --accent:      #3b82f6;
+    --accent-mid:  #60a5fa;
+    --accent-lite: #1e3a5f;
+    --red:         #f87171;
+    --border:      #1e2d47;
+    --code-bg:     #080d17;
+    --code-text:   #cbd5e1;
+    --num:         #60a5fa;
+  }
+}
+:root[data-theme="light"] {
+  --bg:#f8fafc;--surface:#ffffff;--text:#0f172a;--muted:#64748b;
+  --accent:#1e3a8a;--accent-mid:#2563eb;--accent-lite:#dbeafe;
+  --red:#b91c1c;--border:#e2e8f0;--code-bg:#0f172a;--code-text:#cbd5e1;--num:#2563eb;
+}
+:root[data-theme="dark"] {
+  --bg:#0c111d;--surface:#131c2e;--text:#e2e8f0;--muted:#94a3b8;
+  --accent:#3b82f6;--accent-mid:#60a5fa;--accent-lite:#1e3a5f;
+  --red:#f87171;--border:#1e2d47;--code-bg:#080d17;--code-text:#cbd5e1;--num:#60a5fa;
+}
+
+/* ── Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  line-height: 1.75;
+  padding: 48px 20px 80px;
+}
+
+/* ── Layout ── */
+.doc {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+/* ── Cover ── */
+.cover {
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 32px;
+  margin-bottom: 48px;
+}
+.cover-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent-mid);
+  margin-bottom: 12px;
+}
+.cover h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--text);
+  letter-spacing: -.02em;
+  text-wrap: balance;
+  margin-bottom: 14px;
+}
+.cover-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 20px;
+}
+.cover-meta span { display: flex; align-items: center; gap: 5px; }
+.cover-meta strong { color: var(--text); }
+
+/* ── Sections ── */
+.section { margin-bottom: 52px; }
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.sec-num {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--num);
+  font-variant-numeric: tabular-nums;
+  min-width: 28px;
+  padding-top: 3px;
+}
+.section-header h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.01em;
+}
+
+/* ── Prose ── */
+p { margin-bottom: 14px; max-width: 68ch; }
+p:last-child { margin-bottom: 0; }
+strong { font-weight: 600; }
+em { font-style: italic; color: var(--muted); }
+
+/* ── Lists ── */
+ul, ol {
+  padding-left: 20px;
+  margin-bottom: 14px;
+  max-width: 68ch;
+}
+li { margin-bottom: 5px; }
+li::marker { color: var(--accent-mid); }
+
+/* ── Code ── */
+code {
+  font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  font-size: .85em;
+  background: var(--accent-lite);
+  color: var(--accent);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  color: var(--code-text);
+  font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  font-size: .82rem;
+  line-height: 1.65;
+  padding: 20px 22px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin-bottom: 20px;
+  border-left: 3px solid var(--accent-mid);
+}
+pre code { background: none; color: inherit; padding: 0; font-size: inherit; border-radius: 0; }
+.kw  { color: var(--code-kw); }
+.str { color: var(--code-str); }
+.cmt { color: var(--code-cmt); font-style: italic; }
+.fn  { color: var(--code-fn); }
+.num-lit { color: #f9a8d4; }
+
+/* ── Tables ── */
+.tbl-wrap { overflow-x: auto; margin-bottom: 20px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+th {
+  text-align: left;
+  padding: 9px 12px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tr:nth-child(even) td { background: var(--accent-lite); }
+td code { font-size: .8em; }
+
+/* ── Callouts ── */
+.callout {
+  border-left: 3px solid var(--accent-mid);
+  background: var(--accent-lite);
+  padding: 12px 16px;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 20px;
+  font-size: 14px;
+  max-width: 68ch;
+}
+.callout.red { border-color: var(--red); background: color-mix(in srgb, var(--red) 8%, var(--bg)); }
+.callout strong { display: block; margin-bottom: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent-mid); }
+.callout.red strong { color: var(--red); }
+
+/* ── Flow diagram ── */
+.flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+  margin: 20px 0;
+  font-size: 13px;
+}
+.flow-step {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  text-align: center;
+  min-width: 110px;
+  flex-shrink: 0;
+}
+.flow-step .step-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 3px; }
+.flow-step .step-val { font-weight: 700; color: var(--text); }
+.flow-step.accent { background: var(--accent); border-color: var(--accent); }
+.flow-step.accent .step-label, .flow-step.accent .step-val { color: #fff; }
+.flow-arrow {
+  color: var(--muted);
+  font-size: 18px;
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+/* ── Schema boxes ── */
+.schema-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.schema-box {
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: 12.5px;
+}
+.schema-box-head {
+  background: var(--accent);
+  color: #fff;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: .04em;
+}
+.schema-box-row {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.schema-box-row:last-child { border-bottom: none; }
+.schema-box-row .col-name { color: var(--text); font-family: 'Consolas', monospace; }
+.schema-box-row .col-type { color: var(--muted); font-size: 11px; padding-top: 2px; }
+.pk { color: var(--accent-mid); font-weight: 700; }
+.fk { color: #d97706; }
+
+/* ── Print ── */
+@media print {
+  body { background: white; color: black; padding: 0; font-size: 13px; }
+  .cover { border-bottom-color: #1e3a8a; }
+  pre { background: #1e293b; color: #e2e8f0; page-break-inside: avoid; }
+  .section { page-break-inside: avoid; }
+  .schema-grid { grid-template-columns: repeat(3, 1fr); }
+  .flow { page-break-inside: avoid; }
+}
+</style>
+
+<div class="doc">
+
+  <!-- ── COVER ── -->
+  <div class="cover">
+    <div class="cover-eyebrow">Documentación Técnica · Sistema ERP</div>
+    <h1>Módulo de Inventario<br>Pizza Yaja ERP</h1>
+    <p style="color:var(--muted);max-width:58ch;margin-top:10px">
+      Diseño e implementación del sistema de control de inventario, movimientos de stock y descuento automático de ingredientes mediante recetas de producción.
+    </p>
+    <div class="cover-meta">
+      <span><strong>Sistema:</strong> Pizza Yaja ERP</span>
+      <span><strong>Tecnología:</strong> PHP · MySQL · PDO · AJAX</span>
+      <span><strong>Entorno:</strong> XAMPP localhost:3307</span>
+      <span><strong>Fecha:</strong> Julio 2026</span>
+    </div>
+  </div>
+
+  <!-- ── 1. DESCRIPCIÓN GENERAL ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="sec-num">01</span>
+      <h2>Descripción General del Módulo</h2>
+    </div>
+    <p>
+      El módulo de inventario es la capa de gestión de recursos físicos del ERP de Pizza Yaja. Su función central es mantener un registro preciso del stock de ingredientes, registrar cada movimiento que afecte ese stock y, lo más importante, conectar ese stock con las órdenes de venta mediante un sistema de recetas que descuenta ingredientes de forma automática cuando se completa una orden.
+    </p>
+    <p>
+      El módulo fue diseñado sin frameworks externos — toda la lógica corre en PHP puro del lado del servidor y se comunica con el navegador a través de <strong>AJAX con fetch API</strong> y respuestas en JSON, lo que permite actualizaciones en tiempo real sin recargar la página.
+    </p>
+    <p>
+      El módulo abarca tres archivos principales y se integra de forma transversal con el flujo de ventas:
+    </p>
+    <ul>
+      <li><code>erp/inventario.php</code> — Interfaz principal: CRUD de ingredientes, movimientos, visualización de stock</li>
+      <li><code>erp/productos.php</code> — Gestión de recetas por producto</li>
+      <li><code>descontar_ingredientes_fn.php</code> — Función compartida que ejecuta el descuento automático</li>
+    </ul>
+  </div>
+
+  <!-- ── 2. TECNOLOGÍAS ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="sec-num">02</span>
+      <h2>Pila Tecnológica</h2>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Tecnología</th><th>Versión / Detalle</th><th>Uso en el módulo</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>PHP</strong></td><td>8.x (XAMPP)</td><td>Lógica del servidor, AJAX endpoints, migraciones de BD</td></tr>
+          <tr><td><strong>MySQL</strong></td><td>8.x, puerto 3307</td><td>Persistencia de ingredientes, movimientos y recetas</td></tr>
+          <tr><td><strong>PDO</strong></td><td>PHP Data Objects</td><td>Acceso a BD con prepared statements (prevención de SQL Injection)</td></tr>
+          <tr><td><strong>Fetch API</strong></td><td>Nativa del navegador</td><td>Peticiones AJAX asíncronas hacia los endpoints PHP</td></tr>
+          <tr><td><strong>JSON</strong></td><td>—</td><td>Formato de intercambio de datos entre frontend y backend</td></tr>
+          <tr><td><strong>HTML/CSS/JS</strong></td><td>Vanilla, sin frameworks</td><td>Interfaz de usuario del ERP</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <strong>Decisión arquitectónica</strong>
+      Se eligió PHP vanilla sin frameworks (como Laravel o Symfony) para demostrar dominio del lenguaje a nivel base. El patrón de comunicación AJAX permite que la interfaz responda sin recargas, emulando el comportamiento de una Single Page Application sin añadir complejidad de un framework JavaScript.
+    </div>
+  </div>
+
+  <!-- ── 3. ESQUEMA DE BD ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="sec-num">03</span>
+      <h2>Esquema de Base de Datos</h2>
+    </div>
+    <p>El módulo de inventario opera sobre cuatro estructuras de datos relacionadas:</p>
+
+    <div class="schema-grid">
+      <div class="schema-box">
+        <div class="schema-box-head">ingredientes</div>
+        <div class="schema-box-row"><span class="col-name pk">id</span><span class="col-type">INT PK AUTO</span></div>
+        <div class="schema-box-row"><span class="col-name">nombre</span><span class="col-type">VARCHAR(100)</span></div>
+        <div class="schema-box-row"><span class="col-name">categoria</span><span class="col-type">VARCHAR(50)</span></div>
+        <div class="schema-box-row"><span class="col-name">unidad</span><span class="col-type">VARCHAR(20)</span></div>
+        <div class="schema-box-row"><span class="col-name">stock_actual</span><span class="col-type">DECIMAL(10,2)</span></div>
+        <div class="schema-box-row"><span class="col-name">stock_minimo</span><span class="col-type">DECIMAL(10,2)</span></div>
+        <div class="schema-box-row"><span class="col-name">costo_unitario</span><span class="col-type">DECIMAL(10,2)</span></div>
+        <div class="schema-box-row"><span class="col-name">activo</span><span class="col-type">TINYINT(1)</span></div>
+        <div class="schema-box-row"><span class="col-name">created_at</span><span class="col-type">TIMESTAMP</span></div>
+      </div>
+      <div class="schema-box">
+        <div class="schema-box-head">movimientos_inventario</div>
+        <div class="schema-box-row"><span class="col-name pk">id</span><span class="col-type">INT PK AUTO</span></div>
+        <div class="schema-box-row"><span class="col-name fk">ingrediente_id</span><span class="col-type">INT FK</span></div>
+        <div class="schema-box-row"><span class="col-name">tipo</span><span class="col-type">ENUM entrada/salida/ajuste</span></div>
+        <div class="schema-box-row"><span class="col-name">cantidad</span><span class="col-type">DECIMAL(10,2)</span></div>
+        <div class="schema-box-row"><span class="col-name">stock_antes</span><span class="col-type">DECIMAL(10,2)</span></div>
+        <div class="schema-box-row"><span class="col-name">stock_despues</span><span class="col-type">DECIMAL(10,2)</span></div>
+        <div class="schema-box-row"><span class="col-name">nota</span><span class="col-type">VARCHAR(255)</span></div>
+        <div class="schema-box-row"><span class="col-name fk">usuario_id</span><span class="col-type">INT FK nullable</span></div>
+        <div class="schema-box-row"><span class="col-name">fecha</span><span class="col-type">TIMESTAMP</span></div>
+      </div>
+      <div class="schema-box">
+        <div class="schema-box-head">recetas</div>
+        <div class="schema-box-row"><span class="col-name pk">id</span><span class="col-type">INT PK AUTO</span></div>
+        <div class="schema-box-row"><span class="col-name fk">producto_id</span><span class="col-type">INT FK</span></div>
+        <div class="schema-box-row"><span class="col-name fk">ingrediente_id</span><span class="col-type">INT FK</span></div>
+        <div class="schema-box-row"><span class="col-name">cantidad</span><span class="col-type">DECIMAL(10,4)</span></div>
+        <div class="schema-box-row" style="background:var(--accent-lite)"><span class="col-name" style="font-size:11px;color:var(--muted)">UNIQUE(producto_id, ingrediente_id)</span></div>
+      </div>
+      <div class="schema-box">
+        <div class="schema-box-head">ordenes <em style="font-weight:400;font-size:11px">(columna añadida)</em></div>
+        <div class="schema-box-row"><span class="col-name pk">id</span><span class="col-type">INT PK</span></div>
+        <div class="schema-box-row"><span class="col-name">...</span><span class="col-type">campos existentes</span></div>
+        <div class="schema-box-row" style="background:var(--accent-lite)">
+          <span class="col-name" style="color:var(--accent-mid)">ingredientes_descontados</span>
+          <span class="col-type">TINYINT(1) DEFAULT 0</span>
+        </div>
+      </div>
+    </div>
+
+    <p>La relación entre tablas se establece con una <strong>clave foránea con CASCADE DELETE</strong>, garantizando integridad referencial: si se elimina un ingrediente, sus movimientos históricos se eliminan automáticamente.</p>
+
+    <pre><code><span class="cmt">-- Integridad referencial en movimientos_inventario</span>
+<span class="kw">FOREIGN KEY</span> (ingrediente_id)
+  <span class="kw">REFERENCES</span> ingredientes(id)
+  <span class="kw">ON DELETE CASCADE</span>
+
+<span class="cmt">-- Constraint UNIQUE en recetas: un ingrediente no puede</span>
+<span class="cmt">-- aparecer dos veces en la misma receta</span>
+<span class="kw">UNIQUE KEY</span> uk_prod_ing (producto_id, ingrediente_id)</code></pre>
+  </div>
+
+  <!-- ── 4. MIGRACIONES AUTOMÁTICAS ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="sec-num">04</span>
+      <h2>Migraciones Automáticas de Base de Datos</h2>
+    </div>
+    <p>
+      Una decisión técnica clave del módulo es que <strong>nunca requiere ejecutar SQL manualmente</strong>. Cada vez que se carga la página, el sistema verifica y crea las tablas necesarias si no existen. Esto se logra con dos patrones combinados:
+    </p>
+
+    <p><strong>Patrón 1 — CREATE TABLE IF NOT EXISTS:</strong> crea la tabla completa la primera vez; en cargas posteriores la instrucción se ignora sin generar error.</p>
+
+    <pre><code><span class="kw">$conn</span>->exec(<span class="str">"
+  CREATE TABLE IF NOT EXISTS ingredientes (
+    id             INT AUTO_INCREMENT PRIMARY KEY,
+    nombre         VARCHAR(100) NOT NULL,
+    categoria      VARCHAR(50)  NOT NULL DEFAULT 'otros',
+    unidad         VARCHAR(20)  NOT NULL DEFAULT 'unidades',
+    stock_actual   DECIMAL(10,2) NOT NULL DEFAULT 0,
+    stock_minimo   DECIMAL(10,2) NOT NULL DEFAULT 0,
+    costo_unitario DECIMAL(10,2) NOT NULL DEFAULT 0,
+    activo         TINYINT(1) NOT NULL DEFAULT 1,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )"</span>);</code></pre>
+
+    <p><strong>Patrón 2 — ALTER TABLE en bloque try/catch:</strong> permite agregar columnas nuevas a tablas ya existentes (instalaciones previas del sistema), sin fallar si la columna ya existe.</p>
+
+    <pre><code><span class="cmt">// Agregar columna si faltaba en instalaciones previas</span>
+<span class="kw">try</span> {
+    <span class="kw">$conn</span>->exec(<span class="str">"ALTER TABLE ingredientes
+                  ADD COLUMN categoria VARCHAR(50) NOT NULL DEFAULT 'otros'"</span>);
+} <span class="kw">catch</span>(PDOException <span class="kw">$e</span>) {} <span class="cmt">// columna ya existe → se ignora silenciosamente</span></code></pre>
+
+    <div class="callout">
+      <strong>Por qué importa</strong>
+      Este patrón resuelve el problema clásico de despliegue: si la base de datos ya tiene datos de una versión anterior del sistema, el script no falla. Es una forma simple de gestión de migraciones sin herramientas externas.
+    </div>
+  </div>
+
+  <!-- ── 5. GESTIÓN DE INGREDIENTES ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="sec-num">05</span>
+      <h2>Gestión de Ingredientes (CRUD via AJAX)</h2>
+    </div>
+    <p>
+      Todas las operaciones de creación, edición y desactivación de ingredientes se procesan en el mismo archivo <code>inventario.php</code>. Cuando llega una petición POST, el servidor detecta que es una llamada AJAX y responde en JSON; cuando llega una petición GET, renderiza el HTML completo. Este patrón se conoce como <strong>endpoint dual</strong>.
+    </p>
+    <pre><code><span class="cmt">// Detección de petición AJAX en inventario.php</span>
+<span class="kw">if</span>(<span class="kw">$_SERVER</span>[<span class="str">'REQUEST_METHOD'</span>] === <span class="str">'POST'</span>) {
+    header(<span class="str">'Content-Type: application/json'</span>);
+    <span class="kw">$d</span> = json_decode(file_get_contents(<span class="str">'php://input'</span>), <span class="kw">true</span>);
+    <span class="kw">$accion</span> = <span class="kw">$d</span>[<span class="str">'accion'</span>] ?? <span class="str">''</span>;
+    <span class="kw">try</span> {
+        <span class="kw">if</span>(<span class="kw">$accion</span> === <span class="str">'crear'</span>) { <span class="cmt">/* INSERT */</span> }
+        <span class="kw">elseif</span>(<span class="kw">$accion</span> === <span class="str">'editar'</span>) { <span class="cmt">/* UPDATE */</span> }
+        <span class="kw">elseif</span>(<span class="kw">$accion</span> === <span class="str">'movimiento'</span>) { <span class="cmt">/* ver sección 6 */</span> }
+        <span class="kw">elseif</span>(<span class="kw">$accion</span> === <span class="str">'toggle_activo'</span>) { <span class="cmt">/* NOT activo */</span> }
+    } <span class="kw">catch</span>(PDOException <span class="kw">$e</span>) {
+        echo json_encode([<span class="str">'success'</span>=><span class="kw">false</span>, <span class="str">'error'</span>=><span class="kw">$e</span>->getMessage()]);
+    }
+    exit; <span class="cmt">// detener aquí para no renderizar HTML</span>
+}</code></pre>
+    <p>Los prepared statements de PDO son obligatorios en toda operación de escritura. Vinculan los parámetros por separado de la consulta SQL, eliminando la posibilidad de inyección SQL:</p>
+    <pre><code><span class="cmt">// Prepared statement — los valores se envían separados del SQL</span>
+<span class="kw">$conn</span>->prepare(<span class="str">"INSERT INTO ingredientes
+    (nombre, categoria, unidad, stock_actual, stock_minimo, costo_unitario)
+    VALUES (?, ?, ?, ?, ?, ?)"</span>)
+     ->execute([<span class="kw">$d</span>[<span class="str">'nombre'</span>], <span class="kw">$d</span>[<span class="str">'categoria'</span>], <span class="kw">$d</span>[<span class="str">'unidad'</span>],
+                <span class="kw">$d</span>[<span class="str">'stock_actual'</span>], <span class="kw">$d</span>[<span class="str">'stock_minimo'</span>], <span class="kw">$d</span>[<span class="str">'costo_unitario'</span>]]);</code></pre>
+  </div>
+
+  <!-- ── 6. MOVIMIENTOS DE STOCK ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="sec-num">06</span>
+      <h2>Sistema de Movimientos de Stock</h2>
+    </div>
+    <p>
+      Cada cambio en el stock de un ingrediente se registra como un <strong>movimiento</strong>, nunca se modifica el stock directamente sin traza. Esto garantiza trazabilidad total: siempre se puede ver qué pasó, cuándo y quién lo hizo.
+    </p>
+    <p>El sistema soporta tres tipos de movimiento:</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Tipo</th><th>Fórmula</th><th>Validación</th><th>Caso de uso</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>entrada</code></td>
+            <td><code>stock_despues = antes + cantidad</code></td>
+            <td>Ninguna — siempre válido</td>
+            <td>Recepción de mercadería, compra de insumos</td>
+          </tr>
+          <tr>
+            <td><code>salida</code></td>
+            <td><code>stock_despues = antes − cantidad</code></td>
+            <td>Se requiere <code>cantidad ≤ stock_actual</code></td>
+            <td>Retiro manual de inventario, merma</td>
+          </tr>
+          <tr>
+            <td><code>ajuste</code></td>
+            <td><code>stock_despues = cantidad</code> (valor absoluto)</td>
+            <td>Ninguna — reemplaza el valor</td>
+            <td>Corrección tras conteo físico de inventario</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <pre><code><span class="kw">$antes</span> = (float)<span class="kw">$ing</span>[<span class="str">'stock_actual'</span>];
+<span class="kw">$cant</span>  = (float)<span class="kw">$d</span>[<span class="str">'cantidad'</span>];
+
+<span class="kw">if</span>(<span class="kw">$d</span>[<span class="str">'tipo'</span>] === <span class="str">'entrada'</span>) {
+    <span class="kw">$despues</span> = <span class="kw">$antes</span> + <span class="kw">$cant</span>;
+
+} <span class="kw">elseif</span>(<span class="kw">$d</span>[<span class="str">'tipo'</span>] === <span class="str">'salida'</span>) {
+    <span class="kw">if</span>(<span class="kw">$cant</span> > <span class="kw">$antes</span>) {
+        echo json_encode([<span class="str">'success'</span>=><span class="kw">false</span>,
+            <span class="str">'error'</span>=><span class="str">'Stock insuficiente (disponible: '</span>.<span class="kw">$antes</span>.<span class="str">')'</span>]);
+        exit;
+    }
+    <span class="kw">$despues</span> = <span class="kw">$antes</span> - <span class="kw">$cant</span>;
+
+} <span class="kw">else</span> { <span class="cmt">// ajuste: el usuario define el stock final</span>
+    <span class="kw">$despues</span> = <span class="kw">$cant</span>;
+    <span class="kw">$cant</span> = round(abs(<span class="kw">$despues</span> - <span class="kw">$antes</span>), <span class="num-lit">2</span>); <span class="cmt">// diferencia para el log</span>
+}
+
+<span class="cmt">// Actualizar stock e insertar registro de movimiento</span>
+<span class="kw">$conn</span>->prepare(<span class="str">"UPDATE ingredientes SET stock_actual=? WHERE id=?"</span>)
+     ->execute([<span class="kw">$despues</span>, <span class="kw">$d</span>[<span class="str">'id'</span>]]);
+
+<span class="kw">$conn</span>->prepare(<span class="str">"INSERT INTO movimientos_inventario
+    (ingrediente_id, tipo, cantidad, stock_antes, stock_despues, nota, usuario_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)"</span>)
+     ->execute([<span class="kw">$d</span>[<span class="str">'id'</span>], <span class="kw">$d</span>[<span class="str">'tipo'</span>], <span class="kw">$cant</span>, <span class="kw">$antes</span>, <span class="kw">$despues</span>,
+                <span class="kw">$d</span>[<span class="str">'nota'</span>] ?? <span class="kw">null</span>, <span class="kw">$_SESSION</span>[<span class="str">'usuario_id'</span>]]);</code></pre>
+  </div>
+
+  <!-- ── 7. SISTEMA DE RECETAS ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="sec-num">07</span>
+      <h2>Sistema de Recetas</h2>
+    </div>
+    <p>
+      La tabla <code>recetas</code> es el puente entre el módulo de ventas y el de inventario. Cada fila representa <em>"un producto requiere X unidades de un ingrediente"</em>. Un producto puede tener múltiples ingredientes y un ingrediente puede aparecer en múltiples recetas.
+    </p>
+    <p>
+      La restricción <code>UNIQUE KEY uk_prod_ing (producto_id, ingrediente_id)</code> previene duplicados a nivel de base de datos: MySQL rechazará cualquier intento de insertar el mismo ingrediente dos veces para el mismo producto, independientemente de la lógica de la aplicación.
+    </p>
+    <p>
+      La gestión de recetas se realiza desde <code>erp/productos.php</code>. El frontend carga la receta actual vía AJAX (<code>accion: 'receta_get'</code>), permite al usuario agregar o quitar ingredientes, y al guardar reemplaza toda la receta con una operación DELETE + INSERT múltiple:
+    </p>
+    <pre><code><span class="kw">elseif</span>(<span class="kw">$accion</span> === <span class="str">'receta_guardar'</span>) {
+    <span class="cmt">// Eliminar receta anterior completa</span>
+    <span class="kw">$conn</span>->prepare(<span class="str">"DELETE FROM recetas WHERE producto_id=?"</span>)
+         ->execute([(int)<span class="kw">$d</span>[<span class="str">'producto_id'</span>]]);
+
+    <span class="cmt">// Insertar la nueva receta línea por línea</span>
+    <span class="kw">$ins</span> = <span class="kw">$conn</span>->prepare(
+        <span class="str">"INSERT INTO recetas (producto_id, ingrediente_id, cantidad) VALUES (?,?,?)"</span>);
+
+    <span class="kw">foreach</span>(<span class="kw">$d</span>[<span class="str">'ingredientes'</span>] ?? [] <span class="kw">as</span> <span class="kw">$ing</span>) {
+        <span class="kw">if</span>((float)<span class="kw">$ing</span>[<span class="str">'cantidad'</span>] > <span class="num-lit">0</span> && (int)<span class="kw">$ing</span>[<span class="str">'ingrediente_id'</span>] > <span class="num-lit">0</span>) {
+            <span class="kw">$ins</span>->execute([
+                (int)<span class="kw">$d</span>[<span class="str">'producto_id'</span>],
+                (int)<span class="kw">$ing</span>[<span class="str">'ingrediente_id'</span>],
+                (float)<span class="kw">$ing</span>[<span class="str">'cantidad'</span>]
+            ]);
+        }
+    }
+    echo json_encode([<span class="str">'success'</span>=><span class="kw">true</span>]);
+}</code></pre>
+    <div class="callout">
+      <strong>Reutilización del prepared statement</strong>
+      El objeto <code>$ins</code> se prepara una sola vez y se ejecuta múltiples veces dentro del foreach. Esto es más eficiente que preparar dentro del loop: MySQL parsea y compila el SQL una sola vez, y en cada iteración solo recibe los valores.
+    </div>
+  </div>
+
+  <!-- ── 8. DESCUENTO AUTOMÁTICO ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="sec-num">08</span>
+      <h2>Descuento Automático de Ingredientes</h2>
+    </div>
+    <p>
+      El archivo <code>descontar_ingredientes_fn.php</code> implementa la función <code>descontarIngredientes($conn, $orden_id)</code>, que se invoca automáticamente cuando una orden alcanza el estado <code>'completado'</code>. Esta función resuelve el problema de vincular el stock físico con el flujo de ventas sin intervención manual.
+    </p>
+
+    <p><strong>Flujo de ejecución:</strong></p>
+    <div class="flow">
+      <div class="flow-step"><div class="step-label">Estado</div><div class="step-val">completado</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="step-label">Verificar</div><div class="step-val">flag = 0?</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="step-label">Leer</div><div class="step-val">detalle_orden</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="step-label">Para c/item</div><div class="step-val">buscar receta</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step accent"><div class="step-label">Descontar</div><div class="step-val">stock + log</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="step-label">Marcar</div><div class="step-val">flag = 1</div></div>
+    </div>
+
+    <p>
+      Un aspecto crítico de la función es el <strong>patrón de idempotencia</strong>: la columna <code>ingredientes_descontados</code> actúa como flag que previene un doble descuento. Si por alguna razón la función se llama dos veces sobre la misma orden (por ejemplo, si el usuario recarga la página), el descuento solo ocurre una vez.
+    </p>
+
+    <pre><code><span class="kw">function</span> <span class="fn">descontarIngredientes</span>(<span class="kw">$conn</span>, <span class="kw">$orden_id</span>) {
+    <span class="fn">setupRecetasTables</span>(<span class="kw">$conn</span>); <span class="cmt">// crear tablas si no existen</span>
+
+    <span class="cmt">// ── Patrón idempotente: verificar flag antes de proceder ──</span>
+    <span class="kw">$chk</span> = <span class="kw">$conn</span>->prepare(
+        <span class="str">"SELECT ingredientes_descontados FROM ordenes WHERE id=?"</span>);
+    <span class="kw">$chk</span>->execute([<span class="kw">$orden_id</span>]);
+    <span class="kw">$ord</span> = <span class="kw">$chk</span>->fetch(PDO::FETCH_ASSOC);
+    <span class="kw">if</span>(!<span class="kw">$ord</span> || <span class="kw">$ord</span>[<span class="str">'ingredientes_descontados'</span>]) <span class="kw">return</span>; <span class="cmt">// ya descontado</span>
+
+    <span class="cmt">// ── Preparar statements FUERA del loop (eficiencia) ──</span>
+    <span class="kw">$stmtProd</span>   = <span class="kw">$conn</span>->prepare(<span class="str">"SELECT id FROM productos WHERE nombre=? LIMIT 1"</span>);
+    <span class="kw">$stmtRec</span>    = <span class="kw">$conn</span>->prepare(<span class="str">"SELECT ingrediente_id, cantidad FROM recetas WHERE producto_id=?"</span>);
+    <span class="kw">$stmtStock</span>  = <span class="kw">$conn</span>->prepare(<span class="str">"SELECT stock_actual FROM ingredientes WHERE id=? AND activo=1"</span>);
+    <span class="kw">$stmtUpdate</span> = <span class="kw">$conn</span>->prepare(<span class="str">"UPDATE ingredientes SET stock_actual=? WHERE id=?"</span>);
+    <span class="kw">$stmtLog</span>    = <span class="kw">$conn</span>->prepare(<span class="str">"INSERT INTO movimientos_inventario
+        (ingrediente_id, tipo, cantidad, stock_antes, stock_despues, nota)
+        VALUES (?, ?, ?, ?, ?, ?)"</span>);
+
+    <span class="cmt">// ── Procesar cada ítem de la orden ──</span>
+    <span class="kw">foreach</span>(<span class="kw">$detalles</span> <span class="kw">as</span> <span class="kw">$item</span>) {
+        <span class="kw">$stmtProd</span>->execute([<span class="kw">$item</span>[<span class="str">'producto_nombre'</span>]]);
+        <span class="kw">$prod</span> = <span class="kw">$stmtProd</span>->fetch(PDO::FETCH_ASSOC);
+        <span class="kw">if</span>(!<span class="kw">$prod</span>) <span class="kw">continue</span>; <span class="cmt">// producto sin receta → omitir</span>
+
+        <span class="kw">$stmtRec</span>->execute([<span class="kw">$prod</span>[<span class="str">'id'</span>]]);
+        <span class="kw">$receta</span> = <span class="kw">$stmtRec</span>->fetchAll(PDO::FETCH_ASSOC);
+
+        <span class="kw">foreach</span>(<span class="kw">$receta</span> <span class="kw">as</span> <span class="kw">$r</span>) {
+            <span class="kw">$total</span> = round(<span class="kw">$r</span>[<span class="str">'cantidad'</span>] * <span class="kw">$item</span>[<span class="str">'cantidad'</span>], <span class="num-lit">4</span>);
+            <span class="kw">$antes</span>   = (float)<span class="kw">$ingRow</span>[<span class="str">'stock_actual'</span>];
+            <span class="kw">$despues</span> = round(max(<span class="num-lit">0</span>, <span class="kw">$antes</span> - <span class="kw">$total</span>), <span class="num-lit">4</span>); <span class="cmt">// no puede ser negativo</span>
+            <span class="kw">$stmtUpdate</span>->execute([<span class="kw">$despues</span>, <span class="kw">$r</span>[<span class="str">'ingrediente_id'</span>]]);
+            <span class="kw">$stmtLog</span>->execute([...]);
+        }
+    }
+    <span class="cmt">// ── Marcar orden como procesada (idempotencia) ──</span>
+    <span class="kw">$conn</span>->prepare(
+        <span class="str">"UPDATE ordenes SET ingredientes_descontados=1 WHERE id=?"</span>)->execute([<span class="kw">$orden_id</span>]);
+}</code></pre>
+
+    <div class="callout red">
+      <strong>Decisión de diseño crítica</strong>
+      En <code>detalle_orden</code>, la columna <code>producto_id</code> puede ser NULL (una orden puede crearse sin productos). Por esto, la función no hace JOIN por ID sino que busca el producto <strong>por nombre</strong> (<code>WHERE nombre=?</code>). Esto hace que el sistema sea robusto a datos incompletos.
+    </div>
+  </div>
+
+  <!-- ── 9. INTEGRACIÓN CON EL POS ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="sec-num">09</span>
+      <h2>Integración con el Punto de Venta</h2>
+    </div>
+    <p>
+      La función <code>descontarIngredientes()</code> se invoca en dos puntos del flujo de ventas, cubriendo ambas rutas por las que una orden puede cerrarse:
+    </p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Archivo</th><th>Cuándo se llama</th><th>Posición en el flujo</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>completar_orden.php</code></td>
+            <td>Cuando el camarero cierra la orden manualmente</td>
+            <td>Después del <code>UPDATE estado='completado'</code>, dentro de try/catch</td>
+          </tr>
+          <tr>
+            <td><code>procesar_pago.php</code></td>
+            <td>Cuando el pago cubre el total de la orden</td>
+            <td>Después del <code>$conn->commit()</code>, solo si <code>$pendiente &lt;= 0</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      En ambos casos, la llamada está envuelta en <code>try/catch</code> vacío para que un posible fallo en el descuento de inventario <strong>no revierta ni bloquee el cierre de la orden</strong> — el pago ya fue registrado y la transacción ya fue confirmada.
+    </p>
+    <pre><code><span class="cmt">// En completar_orden.php</span>
+<span class="kw">$stmt</span> = <span class="kw">$conn</span>->prepare(<span class="str">"UPDATE ordenes SET estado='completado' WHERE id=?"</span>);
+<span class="kw">$stmt</span>->execute([<span class="kw">$orden_id</span>]);
+
+<span class="kw">try</span> { <span class="fn">descontarIngredientes</span>(<span class="kw">$conn</span>, <span class="kw">$orden_id</span>); } <span class="kw">catch</span>(Exception <span class="kw">$e</span>) {}
+
+<span class="cmt">// En procesar_pago.php — después del commit de la transacción de pago</span>
+<span class="kw">$conn</span>->commit();
+<span class="kw">if</span>(<span class="kw">$pendiente</span> <= <span class="num-lit">0</span>) {
+    <span class="kw">try</span> { <span class="fn">descontarIngredientes</span>(<span class="kw">$conn</span>, <span class="kw">$orden_id</span>); } <span class="kw">catch</span>(Exception <span class="kw">$e</span>) {}
+}</code></pre>
+  </div>
+
+  <!-- ── 10. PATRONES TÉCNICOS ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="sec-num">10</span>
+      <h2>Resumen de Patrones Técnicos Aplicados</h2>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Patrón</th><th>Implementación</th><th>Beneficio</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Migración automática</strong></td>
+            <td><code>CREATE TABLE IF NOT EXISTS</code> + <code>ALTER TABLE</code> en try/catch</td>
+            <td>Despliegue sin intervención manual; compatible con versiones previas</td>
+          </tr>
+          <tr>
+            <td><strong>Prepared statements</strong></td>
+            <td>PDO con parámetros posicionales <code>?</code></td>
+            <td>Prevención de SQL Injection; código más legible</td>
+          </tr>
+          <tr>
+            <td><strong>Endpoint dual</strong></td>
+            <td>GET → HTML, POST → JSON en el mismo archivo</td>
+            <td>Menos archivos, lógica centralizada por módulo</td>
+          </tr>
+          <tr>
+            <td><strong>Idempotencia</strong></td>
+            <td>Flag <code>ingredientes_descontados</code> en tabla <code>ordenes</code></td>
+            <td>El descuento ocurre exactamente una vez, sin importar cuántas veces se llame la función</td>
+          </tr>
+          <tr>
+            <td><strong>Statement reuse</strong></td>
+            <td>Prepared statements preparados fuera del loop, ejecutados dentro</td>
+            <td>MySQL parsea el SQL una sola vez; menor overhead en órdenes con muchos ítems</td>
+          </tr>
+          <tr>
+            <td><strong>Función compartida</strong></td>
+            <td><code>require_once 'descontar_ingredientes_fn.php'</code></td>
+            <td>Un solo punto de mantenimiento; misma lógica usada por dos archivos distintos</td>
+          </tr>
+          <tr>
+            <td><strong>Stock mínimo</strong></td>
+            <td><code>max(0, $antes − $total)</code></td>
+            <td>El stock nunca puede quedar en valores negativos</td>
+          </tr>
+          <tr>
+            <td><strong>Integridad referencial</strong></td>
+            <td><code>FOREIGN KEY ... ON DELETE CASCADE</code></td>
+            <td>MySQL garantiza consistencia de datos sin lógica extra en la aplicación</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="border-top:1px solid var(--border);padding-top:20px;margin-top:48px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <span>Pizza Yaja ERP · Módulo de Inventario</span>
+    <span>Documentación técnica · Julio 2026</span>
+  </div>
+
+</div>

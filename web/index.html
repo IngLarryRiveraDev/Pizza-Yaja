@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pizza Yaja | Auténtico Sabor Artesanal</title>
+  <meta name="description" content="Las mejores pizzas artesanales de la zona. Sucursales en Cariari y Guápiles. Abierto todos los días de 11am a 10pm.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================
+       DESIGN SYSTEM
+    ============================================ */
+    :root {
+      --bg:        #0d0d0d;
+      --surface:   #161616;
+      --surface2:  #202020;
+      --border:    #2a2a2a;
+      --orange:    #ff6b00;
+      --orange-lt: #ff9800;
+      --text:      #ede9e3;
+      --muted:     #7a7a7a;
+      --font-h:    'Playfair Display', Georgia, serif;
+      --font-b:    'Inter', system-ui, sans-serif;
+      --r:         14px;
+      --t:         .3s ease;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-b); overflow-x: hidden; }
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+
+    /* ============================================
+       NAVEGACIÓN
+    ============================================ */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      height: 66px; padding: 0 5vw;
+      display: flex; align-items: center; justify-content: space-between;
+      transition: background var(--t), box-shadow var(--t);
+    }
+    nav.scrolled {
+      background: rgba(13,13,13,.93);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 2px 24px rgba(0,0,0,.5);
+    }
+
+    .nav-logo {
+      font-family: var(--font-h);
+      font-size: 26px; font-weight: 900;
+      background: linear-gradient(135deg, var(--orange), var(--orange-lt));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -.5px; line-height: 1;
+    }
+
+    .nav-links { display: flex; gap: 30px; list-style: none; }
+    .nav-links a {
+      font-size: 14px; font-weight: 500; color: #b0b0b0;
+      transition: color var(--t); position: relative; padding-bottom: 2px;
+    }
+    .nav-links a::after {
+      content: ''; position: absolute; bottom: -2px; left: 0; right: 0;
+      height: 2px; background: var(--orange); border-radius: 2px;
+      transform: scaleX(0); transition: transform var(--t);
+    }
+    .nav-links a:hover { color: white; }
+    .nav-links a:hover::after { transform: scaleX(1); }
+
+    .nav-cta {
+      background: linear-gradient(135deg, var(--orange), var(--orange-lt)) !important;
+      color: white !important; font-weight: 700 !important;
+      padding: 9px 22px; border-radius: 50px;
+      box-shadow: 0 4px 16px rgba(255,107,0,.3);
+    }
+    .nav-cta::after { display: none !important; }
+    .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(255,107,0,.45) !important; }
+
+    .hamburger {
+      display: none; flex-direction: column; gap: 5px;
+      cursor: pointer; padding: 6px; background: none; border: none;
+    }
+    .hamburger span {
+      display: block; width: 24px; height: 2px;
+      background: var(--text); border-radius: 2px; transition: var(--t);
+    }
+    .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    .mobile-menu {
+      display: none; position: fixed;
+      top: 66px; left: 0; right: 0; bottom: 0;
+      background: rgba(8,8,8,.97);
+      backdrop-filter: blur(20px);
+      z-index: 999;
+      flex-direction: column; align-items: center; justify-content: center; gap: 36px;
+    }
+    .mobile-menu.open { display: flex; }
+    .mobile-menu a { font-size: 26px; font-weight: 600; color: var(--text); transition: color var(--t); }
+    .mobile-menu a:hover { color: var(--orange); }
+    .mobile-menu .mob-cta {
+      color: var(--orange) !important; font-size: 22px;
+      border: 2px solid var(--orange); padding: 12px 32px; border-radius: 50px;
+    }
+
+    /* ============================================
+       HERO
+    ============================================ */
+    .hero {
+      min-height: 100svh; min-height: 100vh;
+      display: flex; align-items: center;
+      position: relative; overflow: hidden;
+      padding: 100px 5vw 60px;
+      background-image: url('https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1600&auto=format&fit=crop&q=75');
+      background-size: cover;
+      background-position: center;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(0,0,0,.8);
+      z-index: 0;
+    }
+
+    .hero-glow {
+      position: absolute; inset: 0; pointer-events: none; z-index: 1;
+      background:
+        radial-gradient(ellipse 70% 55% at 45% 45%, rgba(255,107,0,.18) 0%, transparent 65%),
+        radial-gradient(ellipse 50% 70% at 10% 80%, rgba(229,57,53,.1) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 40% at 90% 20%, rgba(255,152,0,.08) 0%, transparent 50%);
+    }
+
+    .ingredients {
+      position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1;
+    }
+    .ingr {
+      position: absolute; user-select: none; opacity: .11;
+      animation: floatA linear infinite;
+    }
+    @keyframes floatA {
+      0%   { transform: translateY(0px) rotate(0deg); }
+      33%  { transform: translateY(-18px) rotate(8deg); }
+      66%  { transform: translateY(-6px) rotate(-4deg); }
+      100% { transform: translateY(0px) rotate(0deg); }
+    }
+    @keyframes floatB {
+      0%   { transform: translateY(0px) rotate(0deg); }
+      40%  { transform: translateY(-22px) rotate(-10deg); }
+      70%  { transform: translateY(-8px) rotate(5deg); }
+      100% { transform: translateY(0px) rotate(0deg); }
+    }
+
+    .hero-content { position: relative; z-index: 2; max-width: 660px; }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,107,0,.12); border: 1px solid rgba(255,107,0,.28);
+      color: var(--orange-lt); font-size: 13px; font-weight: 600;
+      padding: 7px 16px; border-radius: 50px; margin-bottom: 28px;
+      letter-spacing: .3px;
+    }
+    .hero-badge::before { content: '●'; font-size: 9px; animation: blink 2s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+    .hero h1 {
+      font-family: var(--font-h);
+      font-size: clamp(46px, 7.5vw, 88px);
+      font-weight: 900; line-height: 1.06; margin-bottom: 22px;
+    }
+    .hero h1 .accent {
+      background: linear-gradient(135deg, var(--orange), var(--orange-lt));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; display: block;
+    }
+    .hero p {
+      font-size: clamp(16px, 1.8vw, 19px);
+      color: #999; line-height: 1.75; margin-bottom: 38px; max-width: 500px;
+    }
+
+    .hero-btns { display: flex; gap: 14px; flex-wrap: wrap; }
+
+    .btn-primary {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--orange), var(--orange-lt));
+      color: white; font-weight: 700; font-size: 16px;
+      padding: 15px 34px; border-radius: 50px;
+      box-shadow: 0 4px 22px rgba(255,107,0,.38); transition: var(--t);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(255,107,0,.5); }
+
+    .btn-outline {
+      display: inline-block;
+      background: transparent; color: var(--text); font-weight: 600; font-size: 16px;
+      padding: 15px 34px; border-radius: 50px;
+      border: 2px solid var(--border); transition: var(--t);
+    }
+    .btn-outline:hover { border-color: var(--orange); color: var(--orange-lt); }
+
+    .scroll-hint {
+      position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      color: var(--muted); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    }
+    .scroll-hint::after {
+      content: ''; width: 1px; height: 38px;
+      background: linear-gradient(to bottom, var(--muted), transparent);
+    }
+
+    /* ============================================
+       GENERAL SECTION STYLES
+    ============================================ */
+    section { padding: 86px 5vw; }
+
+    .label {
+      font-size: 11px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+      color: var(--orange); margin-bottom: 12px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .label::before { content: ''; width: 26px; height: 2px; background: var(--orange); display: block; }
+
+    .sec-title {
+      font-family: var(--font-h);
+      font-size: clamp(28px, 4.5vw, 46px);
+      font-weight: 700; line-height: 1.15; margin-bottom: 14px;
+    }
+    .sec-sub {
+      font-size: 16px; color: var(--muted); line-height: 1.75;
+      max-width: 520px; margin-bottom: 50px;
+    }
+
+    /* ============================================
+       NOSOTROS
+    ============================================ */
+    #nosotros { background: var(--surface); }
+
+    .nosotros-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+    }
+
+    .img-placeholder {
+      aspect-ratio: 4/3; background: var(--surface2);
+      border-radius: var(--r); display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 12px;
+      border: 2px dashed var(--border);
+    }
+    .img-placeholder .ph-icon { font-size: 72px; opacity: .25; }
+    .img-placeholder .ph-label { font-size: 13px; color: var(--muted); }
+
+    .features {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 36px;
+    }
+    .feature {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 18px 16px;
+      transition: border-color var(--t), transform var(--t);
+    }
+    .feature:hover { border-color: rgba(255,107,0,.5); transform: translateY(-2px); }
+    .feature-icon { font-size: 26px; margin-bottom: 8px; }
+    .feature h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .feature p { font-size: 12px; color: var(--muted); line-height: 1.55; }
+
+    /* ============================================
+       MENÚ
+    ============================================ */
+    #menu { background: var(--bg); }
+
+    .menu-tabs {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 38px;
+    }
+    .menu-tab {
+      padding: 10px 22px; border-radius: 50px; font-size: 14px; font-weight: 600;
+      border: 2px solid var(--border); background: transparent; color: var(--muted);
+      cursor: pointer; transition: var(--t);
+    }
+    .menu-tab.active { background: var(--orange); border-color: var(--orange); color: white; }
+    .menu-tab:not(.active):hover { border-color: var(--orange); color: var(--orange-lt); }
+
+    .menu-panel { display: none; }
+    .menu-panel.active { display: block; }
+
+    .menu-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px;
+    }
+
+    /* Pizza tamaños — ocupa todo el ancho */
+    .sizes-block {
+      grid-column: 1 / -1;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); overflow: hidden; margin-bottom: 4px;
+    }
+    .sizes-header {
+      padding: 16px 22px; border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, rgba(255,107,0,.1), transparent);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .sizes-header h3 { font-size: 16px; font-weight: 700; }
+    .badge {
+      font-size: 11px; font-weight: 700; padding: 3px 10px;
+      border-radius: 50px; color: white;
+    }
+    .badge-orange { background: var(--orange); }
+    .badge-red    { background: #e53935; }
+    .badge-blue   { background: #1976d2; }
+    .badge-purple { background: #7b1fa2; }
+
+    .sizes-table {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      padding: 18px 22px; gap: 8px;
+    }
+    .sizes-table.cols4 { grid-template-columns: repeat(4, 1fr); }
+
+    .sz { text-align: center; padding: 4px 0; }
+    .sz-name  { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+    .sz-info  { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+    .sz-price { font-size: 16px; font-weight: 700; color: var(--orange-lt); }
+
+    /* Sabores tags block */
+    .tags-block {
+      grid-column: 1 / -1;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 18px 22px;
+    }
+    .tags-block h3 { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 1px; }
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tag {
+      background: var(--surface2); border: 1px solid var(--border);
+      padding: 5px 14px; border-radius: 50px; font-size: 13px;
+      transition: var(--t); cursor: default;
+    }
+    .tag:hover { border-color: var(--orange); color: var(--orange-lt); }
+
+    /* Producto card */
+    .menu-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); overflow: hidden;
+      transition: transform var(--t), border-color var(--t), box-shadow var(--t);
+    }
+    .menu-card:hover {
+      transform: translateY(-4px); border-color: rgba(255,107,0,.5);
+      box-shadow: 0 12px 28px rgba(0,0,0,.35);
+    }
+    .card-img {
+      aspect-ratio: 16/10; background: var(--surface2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 38px; color: var(--border);
+      border-bottom: 1px solid var(--border); position: relative;
+    }
+    .card-img img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover; border: none;
+    }
+    .card-body { padding: 14px 16px 16px; }
+    .card-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .card-desc { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
+    .card-price { font-size: 17px; font-weight: 700; color: var(--orange-lt); }
+    .card-price small { font-size: 12px; font-weight: 400; color: var(--muted); }
+
+    /* Tags dentro de batidos */
+    .tag-price { font-size: 12px; }
+
+    /* ============================================
+       GALERÍA
+    ============================================ */
+    #galeria { background: var(--surface); }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .gallery-item {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--r); overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 42px; color: var(--border); position: relative;
+      aspect-ratio: 4/3; transition: transform var(--t);
+      cursor: pointer;
+    }
+    .gallery-item:hover { transform: scale(1.01); }
+    .gallery-item.wide  { grid-column: span 2; aspect-ratio: 16/9; }
+    .gallery-item.tall  { grid-row: span 2; aspect-ratio: auto; }
+
+    .gallery-item img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+    .gallery-label {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,.75));
+      padding: 24px 16px 12px;
+      font-size: 12px; color: #888; text-align: center;
+    }
+
+    /* ============================================
+       SUCURSALES
+    ============================================ */
+    #sucursales { background: var(--bg); }
+
+    .sucursales-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 18px;
+    }
+
+    .suc-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); overflow: hidden;
+      transition: border-color var(--t), transform var(--t);
+    }
+    .suc-card:hover { border-color: rgba(255,107,0,.5); transform: translateY(-3px); }
+
+    .suc-header {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(255,107,0,.08), transparent);
+    }
+    .suc-name  { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .suc-hours {
+      font-size: 12px; color: var(--muted);
+      display: flex; align-items: center; gap: 5px;
+    }
+    .suc-hours::before { content: '🕐'; font-size: 11px; }
+
+    .suc-body { padding: 16px 20px 18px; }
+    .suc-phone {
+      font-size: 22px; font-weight: 700; color: var(--text);
+      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .suc-phone::before { content: '📞'; font-size: 16px; }
+
+    .suc-btns { display: flex; gap: 8px; }
+    .btn-wa {
+      flex: 1; background: #25d366; color: white;
+      font-weight: 600; font-size: 13px; padding: 10px;
+      border-radius: 8px; text-align: center; border: none;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: background var(--t);
+    }
+    .btn-wa:hover { background: #1cb955; }
+    .btn-map {
+      flex: 1; background: var(--surface2); color: var(--text);
+      font-weight: 600; font-size: 13px; padding: 10px;
+      border-radius: 8px; text-align: center;
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: var(--t);
+    }
+    .btn-map:hover { border-color: #4285f4; color: #6ba3f5; }
+
+    /* ============================================
+       FOOTER
+    ============================================ */
+    footer {
+      background: #080808; border-top: 1px solid var(--border);
+      padding: 56px 5vw 30px;
+    }
+    .footer-grid {
+      display: grid; grid-template-columns: 2fr 1fr 1fr;
+      gap: 44px; margin-bottom: 44px;
+    }
+
+    .footer-brand .nav-logo { font-size: 28px; display: inline-block; margin-bottom: 16px; }
+    .footer-brand p { font-size: 14px; color: var(--muted); line-height: 1.75; max-width: 280px; }
+
+    .footer-social { display: flex; gap: 10px; margin-top: 22px; }
+    .soc-btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--surface); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; transition: var(--t); cursor: pointer;
+    }
+    .soc-btn:hover { border-color: var(--orange); background: rgba(255,107,0,.1); }
+
+    .footer-col h4 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 18px; color: #888; }
+    .footer-col ul { list-style: none; }
+    .footer-col li { margin-bottom: 10px; }
+    .footer-col a { font-size: 14px; color: var(--muted); transition: color var(--t); }
+    .footer-col a:hover { color: var(--orange-lt); }
+
+    .footer-bottom {
+      border-top: 1px solid var(--border); padding-top: 22px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px; color: var(--muted);
+    }
+
+    /* ============================================
+       SCROLL REVEAL
+    ============================================ */
+    .reveal {
+      opacity: 0; transform: translateY(28px);
+      transition: opacity .55s ease, transform .55s ease;
+    }
+    .reveal.vis { opacity: 1; transform: translateY(0); }
+
+    /* ============================================
+       RESPONSIVE
+    ============================================ */
+    @media (max-width: 900px) {
+      .nosotros-grid { grid-template-columns: 1fr; gap: 36px; }
+      .sizes-table { grid-template-columns: repeat(3, 1fr); }
+      .sizes-table.cols4 { grid-template-columns: repeat(2, 1fr); }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .footer-brand { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .hamburger { display: flex; }
+      .gallery-item.wide { grid-column: span 1; aspect-ratio: 4/3; }
+      .gallery-item.tall { grid-row: span 1; aspect-ratio: 4/3; }
+    }
+
+    @media (max-width: 540px) {
+      section { padding: 64px 5vw; }
+      .hero-btns { flex-direction: column; }
+      .features { grid-template-columns: 1fr 1fr; }
+      .sizes-table { grid-template-columns: repeat(2, 1fr); }
+      .sizes-table.cols4 { grid-template-columns: repeat(2, 1fr); }
+      .gallery-grid { grid-template-columns: 1fr 1fr; }
+      .footer-grid { grid-template-columns: 1fr; gap: 28px; }
+      .footer-bottom { flex-direction: column; gap: 8px; text-align: center; }
+    }
+
+    @media (max-width: 360px) {
+      .features { grid-template-columns: 1fr; }
+      .gallery-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================== NAVBAR ===================== -->
+  <nav id="navbar">
+    <a href="#inicio" class="nav-logo">Pizza Yaja</a>
+    <ul class="nav-links">
+      <li><a href="#nosotros">Nosotros</a></li>
+      <li><a href="#menu">Menú</a></li>
+      <li><a href="#galeria">Galería</a></li>
+      <li><a href="#sucursales">Sucursales</a></li>
+      <li><a href="tel:+50685756873" class="nav-cta">📞 Llamar</a></li>
+    </ul>
+    <button class="hamburger" id="ham" aria-label="Menú">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <div class="mobile-menu" id="mob">
+    <a href="#nosotros"  onclick="closeMob()">Nosotros</a>
+    <a href="#menu"      onclick="closeMob()">Menú</a>
+    <a href="#galeria"   onclick="closeMob()">Galería</a>
+    <a href="#sucursales" onclick="closeMob()">Sucursales</a>
+    <a href="tel:+50685756873" class="mob-cta" onclick="closeMob()">📞 Llamar Ahora</a>
+  </div>
+
+  <!-- ===================== HERO ===================== -->
+  <section class="hero" id="inicio">
+    <div class="hero-glow"></div>
+    <div class="ingredients">
+      <span class="ingr" style="top:8%;left:4%;font-size:66px;animation-duration:7.5s">🍕</span>
+      <span class="ingr" style="top:18%;left:78%;font-size:44px;animation-duration:9s;animation-delay:1.2s;animation-name:floatB">🍅</span>
+      <span class="ingr" style="top:62%;left:7%;font-size:40px;animation-duration:8.2s;animation-delay:2s">🫑</span>
+      <span class="ingr" style="top:72%;left:66%;font-size:60px;animation-duration:6.8s;animation-delay:.5s;animation-name:floatB">🍕</span>
+      <span class="ingr" style="top:28%;left:54%;font-size:42px;animation-duration:10s;animation-delay:3s">🧀</span>
+      <span class="ingr" style="top:82%;left:38%;font-size:36px;animation-duration:7s;animation-delay:1.8s;animation-name:floatB">🫒</span>
+      <span class="ingr" style="top:5%;left:38%;font-size:38px;animation-duration:8.6s;animation-delay:.9s">🌶️</span>
+      <span class="ingr" style="top:52%;left:88%;font-size:40px;animation-duration:9.5s;animation-delay:2.8s;animation-name:floatB">🧄</span>
+      <span class="ingr" style="top:44%;left:2%;font-size:34px;animation-duration:11s;animation-delay:4s">🍄</span>
+      <span class="ingr" style="top:90%;left:82%;font-size:48px;animation-duration:8s;animation-delay:1.5s">🍕</span>
+    </div>
+
+    <div class="hero-content">
+      <div class="hero-badge">Abierto todos los días &middot; 11am – 10pm</div>
+      <h1>
+        Auténtico sabor,
+        <span class="accent">en cada porción</span>
+      </h1>
+      <p>Las mejores pizzas artesanales de la zona, hechas con ingredientes frescos y el amor que cada platillo merece. Encontranos en Cariari y Guápiles.</p>
+      <div class="hero-btns">
+        <a href="#menu" class="btn-primary">Ver Menú Completo</a>
+        <a href="#sucursales" class="btn-outline">Nuestras Sucursales</a>
+      </div>
+    </div>
+
+    <div class="scroll-hint">Explorar</div>
+  </section>
+
+  <!-- ===================== NOSOTROS ===================== -->
+  <section id="nosotros">
+    <div class="nosotros-grid">
+      <div>
+        <div class="label">Sobre Nosotros</div>
+        <h2 class="sec-title">Una pizzería con sabor y tradición</h2>
+        <p style="color:var(--muted);line-height:1.85;font-size:16px;max-width:480px">
+          En Pizza Yaja llevamos años preparando pizzas con los mejores ingredientes y el amor que cada platillo merece. Somos más que una pizzería — somos el lugar donde la familia y los amigos se reúnen a disfrutar.
+        </p>
+        <div class="features">
+          <div class="feature reveal">
+            <div class="feature-icon">🍅</div>
+            <h4>Ingredientes frescos</h4>
+            <p>Seleccionamos los mejores ingredientes para cada pizza</p>
+          </div>
+          <div class="feature reveal">
+            <div class="feature-icon">🏪</div>
+            <h4>2 Sucursales</h4>
+            <p>Cariari y Guápiles, listas para atenderte</p>
+          </div>
+          <div class="feature reveal">
+            <div class="feature-icon">⏰</div>
+            <h4>Todos los días</h4>
+            <p>Abiertos de 11am a 10pm sin excepción</p>
+          </div>
+          <div class="feature reveal">
+            <div class="feature-icon">🍕</div>
+            <h4>+17 Sabores</h4>
+            <p>Variedad de pizzas para todos los gustos</p>
+          </div>
+        </div>
+      </div>
+      <div style="aspect-ratio:4/3;border-radius:var(--r);overflow:hidden;background:var(--surface2)">
+        <img src="https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=800&auto=format&fit=crop&q=80"
+             alt="Pizza Yaja" loading="lazy"
+             style="width:100%;height:100%;object-fit:cover;display:block"
+             onerror="this.style.display='none'">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== MENÚ ===================== -->
+  <section id="menu">
+    <div class="label">Lo que ofrecemos</div>
+    <h2 class="sec-title">Nuestro Menú</h2>
+    <p class="sec-sub">Pizzas artesanales, calzones, pastas y una variedad de bebidas para acompañar tu experiencia perfecta.</p>
+
+    <div class="menu-tabs">
+      <button class="menu-tab active" onclick="setTab('pizzas',this)">🍕 Pizzas</button>
+      <button class="menu-tab" onclick="setTab('calzones',this)">🥙 Calzones</button>
+      <button class="menu-tab" onclick="setTab('pastas',this)">🍝 Pastas</button>
+      <button class="menu-tab" onclick="setTab('batidos',this)">🥤 Batidos</button>
+      <button class="menu-tab" onclick="setTab('bebidas',this)">☕ Bebidas</button>
+    </div>
+
+    <!-- PIZZAS -->
+    <div class="menu-panel active" id="panel-pizzas">
+      <div class="menu-grid">
+        <div class="sizes-block">
+          <div class="sizes-header">
+            <h3>Pizzas Individuales</h3>
+            <span class="badge badge-orange">+17 Sabores</span>
+          </div>
+          <div class="sizes-table">
+            <div class="sz"><div class="sz-name">Personal</div><div class="sz-info">4 porciones</div><div class="sz-price">₡2,500</div></div>
+            <div class="sz"><div class="sz-name">Pequeña</div><div class="sz-info">6 porciones</div><div class="sz-price">₡5,500</div></div>
+            <div class="sz"><div class="sz-name">Mediana</div><div class="sz-info">8 porciones</div><div class="sz-price">₡8,000</div></div>
+            <div class="sz"><div class="sz-name">Grande</div><div class="sz-info">12 porciones</div><div class="sz-price">₡9,000</div></div>
+            <div class="sz"><div class="sz-name">Familiar</div><div class="sz-info">16 porciones</div><div class="sz-price">₡10,000</div></div>
+          </div>
+        </div>
+
+        <div class="sizes-block">
+          <div class="sizes-header">
+            <h3>Pizzas 2×1</h3>
+            <span class="badge badge-red">¡Llevate dos!</span>
+          </div>
+          <div class="sizes-table cols4">
+            <div class="sz"><div class="sz-name">Pequeña</div><div class="sz-info">6 c/u</div><div class="sz-price">₡8,500</div></div>
+            <div class="sz"><div class="sz-name">Mediana</div><div class="sz-info">8 c/u</div><div class="sz-price">₡12,500</div></div>
+            <div class="sz"><div class="sz-name">Grande</div><div class="sz-info">12 c/u</div><div class="sz-price">₡13,500</div></div>
+            <div class="sz"><div class="sz-name">Familiar</div><div class="sz-info">16 c/u</div><div class="sz-price">₡17,000</div></div>
+          </div>
+        </div>
+
+        <div class="tags-block">
+          <h3>Sabores disponibles</h3>
+          <div class="tags">
+            <span class="tag">Birria</span>
+            <span class="tag">Brasileña</span>
+            <span class="tag">Camarones</span>
+            <span class="tag">Canadiense</span>
+            <span class="tag">Chicharrón</span>
+            <span class="tag">Hawaiana</span>
+            <span class="tag">Jamón y Hongos</span>
+            <span class="tag">Jamón y Queso</span>
+            <span class="tag">Mar y Tierra</span>
+            <span class="tag">Mexicana</span>
+            <span class="tag">Napolitana</span>
+            <span class="tag">Pepperoni</span>
+            <span class="tag">Pollo</span>
+            <span class="tag">Salsa Blanca</span>
+            <span class="tag">Solo Carnes</span>
+            <span class="tag">Suprema</span>
+            <span class="tag">Vegetariana</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CALZONES -->
+    <div class="menu-panel" id="panel-calzones">
+      <div class="menu-grid">
+        <div class="menu-card reveal">
+          <div class="card-img">
+            <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&auto=format&fit=crop&q=80" alt="Calzone Jamón y Queso" loading="lazy" onerror="this.style.display='none'">
+          </div>
+          <div class="card-body">
+            <div class="card-name">Jamón y Queso</div>
+            <div class="card-desc">Clásico calzone relleno de jamón y queso derretido</div>
+            <div class="card-price">₡1,000</div>
+          </div>
+        </div>
+        <div class="menu-card reveal">
+          <div class="card-img">
+            <img src="https://images.unsplash.com/photo-1528137871618-79d2761e3fd5?w=600&auto=format&fit=crop&q=80" alt="Calzone Extra Queso" loading="lazy" onerror="this.style.display='none'">
+          </div>
+          <div class="card-body">
+            <div class="card-name">Extra Queso</div>
+            <div class="card-desc">Para los amantes del queso derretido a cada mordida</div>
+            <div class="card-price">₡2,000</div>
+          </div>
+        </div>
+        <div class="menu-card reveal">
+          <div class="card-img">
+            <img src="https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=600&auto=format&fit=crop&q=80" alt="Calzone Sabor a Elegir" loading="lazy" onerror="this.style.display='none'">
+          </div>
+          <div class="card-body">
+            <div class="card-name">Sabor a Elegir</div>
+            <div class="card-desc">Escogé tu sabor favorito de nuestra lista de pizzas</div>
+            <div class="card-price">₡2,500</div>
+          </div>
+        </div>
+        <div class="menu-card reveal">
+          <div class="card-img">
+            <img src="https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=600&auto=format&fit=crop&q=80" alt="Calzone Grande" loading="lazy" onerror="this.style.display='none'">
+          </div>
+          <div class="card-body">
+            <div class="card-name">Calzone Grande</div>
+            <div class="card-desc">El más grande, perfecto para compartir o para los más hambrientos</div>
+            <div class="card-price">₡3,500</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASTAS -->
+    <div class="menu-panel" id="panel-pastas">
+      <div class="menu-grid">
+        <div class="menu-card reveal">
+          <div class="card-img">
+            <img src="https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=600&auto=format&fit=crop&q=80" alt="Spaguettis" loading="lazy" onerror="this.style.display='none'">
+          </div>
+          <div class="card-body">
+            <div class="card-name">Spaguettis</div>
+            <div class="card-desc">Espaguetis al estilo de la casa con nuestra salsa especial</div>
+            <div class="card-price">₡3,000</div>
+          </div>
+        </div>
+        <div class="menu-card reveal">
+          <div class="card-img">
+            <img src="https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80" alt="Lasaña" loading="lazy" onerror="this.style.display='none'">
+          </div>
+          <div class="card-body">
+            <div class="card-name">Lasaña</div>
+            <div class="card-desc">Lasaña tradicional en capas con carne y queso gratinado</div>
+            <div class="card-price">₡3,500</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BATIDOS -->
+    <div class="menu-panel" id="panel-batidos">
+      <div class="menu-grid">
+        <div class="sizes-block">
+          <div class="sizes-header">
+            <h3>Batidos en Agua</h3>
+            <span class="badge badge-blue">₡1,600 c/u</span>
+          </div>
+          <div style="padding:16px 22px">
+            <div class="tags">
+              <span class="tag">Fresa Hierbabuena</span>
+              <span class="tag">Frutas</span>
+              <span class="tag">Guanábana</span>
+              <span class="tag">Limón Hierbabuena</span>
+              <span class="tag">Mango</span>
+              <span class="tag">Manzana Verde</span>
+              <span class="tag">Melón</span>
+              <span class="tag">Naranja Zanahoria</span>
+              <span class="tag">Papaya / Banano</span>
+              <span class="tag">Piña</span>
+              <span class="tag">Piña Hierbabuena</span>
+              <span class="tag">Piña y Apio</span>
+              <span class="tag">Sandía</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sizes-block">
+          <div class="sizes-header">
+            <h3>Batidos en Leche</h3>
+            <span class="badge badge-purple">desde ₡2,000</span>
+          </div>
+          <div style="padding:16px 22px">
+            <div class="tags">
+              <span class="tag">Banano <span class="tag-price">₡2,300</span></span>
+              <span class="tag">Chicle <span class="tag-price">₡2,300</span></span>
+              <span class="tag">Chocolate <span class="tag-price">₡2,300</span></span>
+              <span class="tag">Churchill <span class="tag-price">₡2,300</span></span>
+              <span class="tag">Fresa <span class="tag-price">₡2,300</span></span>
+              <span class="tag">Fresa con Crema <span class="tag-price">₡2,500</span></span>
+              <span class="tag">Guanábana <span class="tag-price">₡2,300</span></span>
+              <span class="tag">Mango <span class="tag-price">₡2,300</span></span>
+              <span class="tag">Mangonada <span class="tag-price">₡2,000</span></span>
+              <span class="tag">Melón <span class="tag-price">₡2,300</span></span>
+              <span class="tag">Menta <span class="tag-price">₡2,300</span></span>
+              <span class="tag">Mora <span class="tag-price">₡2,300</span></span>
+              <span class="tag">Oreo <span class="tag-price">₡2,300</span></span>
+              <span class="tag">Papaya <span class="tag-price">₡2,300</span></span>
+              <span class="tag">Piña <span class="tag-price">₡2,300</span></span>
+              <span class="tag">Sandía <span class="tag-price">₡2,300</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BEBIDAS -->
+    <div class="menu-panel" id="panel-bebidas">
+      <div class="menu-grid">
+        <div class="menu-card reveal">
+          <div class="card-img">
+            <img src="https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&auto=format&fit=crop&q=80" alt="Café Negro" loading="lazy" onerror="this.style.display='none'">
+          </div>
+          <div class="card-body"><div class="card-name">Café Negro</div><div class="card-price">₡700</div></div>
+        </div>
+        <div class="menu-card reveal">
+          <div class="card-img">
+            <img src="https://images.unsplash.com/photo-1561047029-3000c68339ca?w=600&auto=format&fit=crop&q=80" alt="Café con Leche" loading="lazy" onerror="this.style.display='none'">
+          </div>
+          <div class="card-body"><div class="card-name">Café con Leche</div><div class="card-price">₡1,000</div></div>
+        </div>
+        <div class="menu-card reveal">
+          <div class="card-img">
+            <img src="https://images.unsplash.com/photo-1542990253-a781e5a28428?w=600&auto=format&fit=crop&q=80" alt="Chocolate" loading="lazy" onerror="this.style.display='none'">
+          </div>
+          <div class="card-body"><div class="card-name">Chocolate</div><div class="card-price">₡1,000</div></div>
+        </div>
+        <div class="menu-card reveal">
+          <div class="card-img">
+            <img src="https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=600&auto=format&fit=crop&q=80" alt="Capuchino" loading="lazy" onerror="this.style.display='none'">
+          </div>
+          <div class="card-body"><div class="card-name">Capuchino</div><div class="card-price">₡1,300</div></div>
+        </div>
+        <div class="menu-card reveal">
+          <div class="card-img">
+            <img src="https://images.unsplash.com/photo-1497935586351-b67a49e012bf?w=600&auto=format&fit=crop&q=80" alt="Capuchino con Chantilly" loading="lazy" onerror="this.style.display='none'">
+          </div>
+          <div class="card-body"><div class="card-name">Capuchino con Chantilly</div><div class="card-price">₡1,500</div></div>
+        </div>
+        <div class="menu-card reveal">
+          <div class="card-img">
+            <img src="https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=600&auto=format&fit=crop&q=80" alt="Milkshakes" loading="lazy" onerror="this.style.display='none'">
+          </div>
+          <div class="card-body">
+            <div class="card-name">Milkshakes</div>
+            <div class="card-desc">Caramelo · Chicle · Chocolate · Churchill · Fresa · Menta · Oreo · Piña Colada</div>
+            <div class="card-price">₡3,500 <small>c/u</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== GALERÍA ===================== -->
+  <section id="galeria">
+    <div class="label">Nuestras fotos</div>
+    <h2 class="sec-title">Galería</h2>
+    <p class="sec-sub">Una muestra de lo mejor que hacemos en Pizza Yaja.</p>
+
+    <div class="gallery-grid">
+      <div class="gallery-item wide reveal">
+        <img src="https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1200&auto=format&fit=crop&q=80" alt="Pizza" loading="lazy" onerror="this.style.display='none'">
+        <div class="gallery-label">Nuestras pizzas</div>
+      </div>
+      <div class="gallery-item tall reveal">
+        <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop&q=80" alt="Restaurante" loading="lazy" onerror="this.style.display='none'">
+        <div class="gallery-label">El ambiente</div>
+      </div>
+      <div class="gallery-item reveal">
+        <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&auto=format&fit=crop&q=80" alt="Pizza" loading="lazy" onerror="this.style.display='none'">
+        <div class="gallery-label">Recién salida del horno</div>
+      </div>
+      <div class="gallery-item reveal">
+        <img src="https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=600&auto=format&fit=crop&q=80" alt="Pasta" loading="lazy" onerror="this.style.display='none'">
+        <div class="gallery-label">Pastas de la casa</div>
+      </div>
+      <div class="gallery-item wide reveal">
+        <img src="https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=1200&auto=format&fit=crop&q=80" alt="Bebidas" loading="lazy" onerror="this.style.display='none'">
+        <div class="gallery-label">Batidos y milkshakes</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SUCURSALES ===================== -->
+  <section id="sucursales">
+    <div class="label">Encontranos</div>
+    <h2 class="sec-title">Nuestras Sucursales</h2>
+    <p class="sec-sub">Dos sucursales para estar cerca de vos. Abierto todos los días de 11am a 10pm.</p>
+
+    <div class="sucursales-grid">
+      <div class="suc-card reveal">
+        <div class="suc-header">
+          <div class="suc-name">📍 Cariari</div>
+          <div class="suc-hours">11:00 am — 10:00 pm</div>
+        </div>
+        <div class="suc-body">
+          <div class="suc-phone">8575-6873</div>
+          <div class="suc-btns">
+            <a href="https://wa.me/50685756873" target="_blank" class="btn-wa">💬 WhatsApp</a>
+            <a href="https://maps.google.com/?q=Pizza+Yaja+Cariari+Costa+Rica" target="_blank" class="btn-map">📍 Maps</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="suc-card reveal">
+        <div class="suc-header">
+          <div class="suc-name">📍 Guápiles</div>
+          <div class="suc-hours">11:00 am — 10:00 pm</div>
+        </div>
+        <div class="suc-body">
+          <div class="suc-phone">8658-8311</div>
+          <div class="suc-btns">
+            <a href="https://wa.me/50686588311" target="_blank" class="btn-wa">💬 WhatsApp</a>
+            <a href="https://maps.google.com/?q=Pizza+Yaja+Guapiles+Costa+Rica" target="_blank" class="btn-map">📍 Maps</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="nav-logo">Pizza Yaja</div>
+        <p>La mejor pizza artesanal de la zona, hecha con ingredientes frescos y el sabor que te va a encantar. Encontranos en Cariari y Guápiles.</p>
+        <div class="footer-social">
+          <a href="https://www.instagram.com/pizzayaja/" target="_blank" class="soc-btn" title="Instagram">📷</a>
+          <a href="https://www.facebook.com/PizzaYaja/" target="_blank" class="soc-btn" title="Facebook">📘</a>
+          <a href="https://wa.me/50685756873" target="_blank" class="soc-btn" title="WhatsApp">💬</a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Menú</h4>
+        <ul>
+          <li><a href="#menu" onclick="setTab('pizzas',null)">Pizzas</a></li>
+          <li><a href="#menu" onclick="setTab('calzones',null)">Calzones</a></li>
+          <li><a href="#menu" onclick="setTab('pastas',null)">Pastas</a></li>
+          <li><a href="#menu" onclick="setTab('batidos',null)">Batidos</a></li>
+          <li><a href="#menu" onclick="setTab('bebidas',null)">Bebidas</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Sucursales</h4>
+        <ul>
+          <li><a href="tel:+50685756873">Cariari · 8575-6873</a></li>
+          <li><a href="tel:+50686588311">Guápiles · 8658-8311</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span id="yr"></span> Pizza Yaja. Todos los derechos reservados.</span>
+      <span>Hecho con ❤️ en Costa Rica</span>
+    </div>
+  </footer>
+
+  <script>
+    // Año dinámico
+    document.getElementById('yr').textContent = new Date().getFullYear();
+
+    // Navbar scroll
+    const navbar = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+      navbar.classList.toggle('scrolled', window.scrollY > 40);
+    }, { passive: true });
+
+    // Hamburger
+    const ham = document.getElementById('ham');
+    const mob = document.getElementById('mob');
+    ham.addEventListener('click', () => {
+      ham.classList.toggle('open');
+      mob.classList.toggle('open');
+      document.body.style.overflow = mob.classList.contains('open') ? 'hidden' : '';
+    });
+    function closeMob() {
+      ham.classList.remove('open');
+      mob.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    // Menu tabs
+    const tabs = ['pizzas','calzones','pastas','batidos','bebidas'];
+    function setTab(name, btn) {
+      tabs.forEach(t => {
+        document.getElementById('panel-' + t).classList.remove('active');
+      });
+      document.querySelectorAll('.menu-tab').forEach(b => b.classList.remove('active'));
+      document.getElementById('panel-' + name).classList.add('active');
+      if (btn) {
+        btn.classList.add('active');
+      } else {
+        const idx = tabs.indexOf(name);
+        if (idx >= 0) document.querySelectorAll('.menu-tab')[idx].classList.add('active');
+      }
+    }
+
+    // Scroll reveal
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('vis'); });
+    }, { threshold: 0.08 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>

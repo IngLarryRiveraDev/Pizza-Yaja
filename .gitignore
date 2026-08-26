@@ -1,2 +1,12 @@
+# Credenciales — nunca subir
+config.local.php
 config.production.php
+
+# Scripts de seed — solo para uso local
+seed_productos.php
+
+# Archivos temporales y de Claude
 .claude/
+erp_inventario_doc.html
+manual_usuario_inventario.html
+manual_tecnico_inventario.html

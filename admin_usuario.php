@@ -20,6 +20,7 @@ try {
         $usuario  = trim($datos['usuario']  ?? '');
         $password = $datos['password'] ?? '';
         $rol      = $datos['rol']      ?? 'camarero';
+        $sucursal = $datos['sucursal'] ?? 'cariari';
 
         if(!$nombre || !$usuario || !$password) {
             echo json_encode(['success' => false, 'error' => 'Campos incompletos']);
@@ -27,11 +28,14 @@ try {
         }
 
         if(!in_array($rol, ['admin', 'camarero', 'cocina'])) {
-            echo json_encode(['success' => false, 'error' => 'Rol inválido']);
+            echo json_encode(['success' => false, 'error' => 'Rol invalido']);
             exit;
         }
 
-        // Verificar que el usuario no exista
+        if(!in_array($sucursal, ['cariari', 'guapiles'])) {
+            $sucursal = 'cariari';
+        }
+
         $stmt = $conn->prepare("SELECT id FROM usuarios WHERE usuario = ?");
         $stmt->execute([$usuario]);
         if($stmt->fetch()) {
@@ -39,8 +43,8 @@ try {
             exit;
         }
 
-        $stmt = $conn->prepare("INSERT INTO usuarios (nombre, usuario, contrasena, rol) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$nombre, $usuario, password_hash($password, PASSWORD_DEFAULT), $rol]);
+        $stmt = $conn->prepare("INSERT INTO usuarios (nombre, usuario, contrasena, rol, sucursal) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$nombre, $usuario, password_hash($password, PASSWORD_DEFAULT), $rol, $sucursal]);
         echo json_encode(['success' => true]);
 
     } elseif($action === 'eliminar') {

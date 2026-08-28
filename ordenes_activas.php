@@ -8,15 +8,30 @@ if(!isset($_SESSION['usuario_id'])) {
 }
 
 require_once 'config.php';
+require_once 'migrations.php';
 
 try {
     $conn = getConnection();
+    setupSucursalColumns($conn);
 
-    $stmt = $conn->query("
-        SELECT * FROM ordenes
-        WHERE estado IN ('pendiente', 'en_cocina', 'listo', 'pagado')
-        ORDER BY fecha_creacion DESC
-    ");
+    $sucursal = $_SESSION['sucursal'] ?? 'cariari';
+    $rol      = $_SESSION['rol']      ?? 'camarero';
+
+    if($rol === 'admin') {
+        $stmt = $conn->query("
+            SELECT * FROM ordenes
+            WHERE estado IN ('pendiente', 'en_cocina', 'listo', 'pagado')
+            ORDER BY fecha_creacion DESC
+        ");
+    } else {
+        $stmt = $conn->prepare("
+            SELECT * FROM ordenes
+            WHERE estado IN ('pendiente', 'en_cocina', 'listo', 'pagado')
+              AND sucursal = ?
+            ORDER BY fecha_creacion DESC
+        ");
+        $stmt->execute([$sucursal]);
+    }
     $ordenes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Construir datos completos para JS

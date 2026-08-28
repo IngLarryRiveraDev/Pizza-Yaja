@@ -8,16 +8,32 @@ if(!isset($_SESSION['usuario_id'])) {
 }
 
 require_once 'config.php';
+require_once 'migrations.php';
 
 try {
     $conn = getConnection();
+    setupSucursalColumns($conn);
 
-    $stmt = $conn->query("
-        SELECT id, numero_orden, nombre_cliente, tipo_servicio, total, fecha_creacion, cocina_notificado
-        FROM ordenes
-        WHERE estado = 'en_cocina'
-        ORDER BY fecha_creacion ASC
-    ");
+    $sucursal = $_SESSION['sucursal'] ?? 'cariari';
+    $rol      = $_SESSION['rol']      ?? 'cocina';
+
+    if($rol === 'admin') {
+        $stmt = $conn->query("
+            SELECT id, numero_orden, nombre_cliente, tipo_servicio, total, fecha_creacion, cocina_notificado
+            FROM ordenes
+            WHERE estado = 'en_cocina'
+            ORDER BY fecha_creacion ASC
+        ");
+    } else {
+        $stmt = $conn->prepare("
+            SELECT id, numero_orden, nombre_cliente, tipo_servicio, total, fecha_creacion, cocina_notificado
+            FROM ordenes
+            WHERE estado = 'en_cocina'
+              AND sucursal = ?
+            ORDER BY fecha_creacion ASC
+        ");
+        $stmt->execute([$sucursal]);
+    }
     $ordenes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Agregar los productos de cada orden

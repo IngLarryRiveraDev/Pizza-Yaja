@@ -17,7 +17,7 @@ try {
     $sucursal = $_SESSION['sucursal'] ?? 'cariari';
     $rol      = $_SESSION['rol']      ?? 'camarero';
 
-    if($rol === 'admin') {
+    if($rol === 'admin' || $sucursal === 'ambas') {
         $stmt = $conn->query("
             SELECT * FROM ordenes
             WHERE estado IN ('pendiente', 'en_cocina', 'listo', 'pagado')

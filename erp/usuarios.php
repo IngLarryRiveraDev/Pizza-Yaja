@@ -12,20 +12,21 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $d['accion'] ?? '';
     try {
         if($accion === 'crear') {
-            // Check duplicado
             $ck = $conn->prepare("SELECT id FROM usuarios WHERE usuario=?");
             $ck->execute([$d['usuario']]);
             if($ck->fetch()) { echo json_encode(['success'=>false,'error'=>'El usuario ya existe']); exit; }
-            $stmt = $conn->prepare("INSERT INTO usuarios (nombre, usuario, contrasena, rol) VALUES (?,?,?,?)");
-            $stmt->execute([$d['nombre'], $d['usuario'], password_hash($d['contrasena'], PASSWORD_DEFAULT), $d['rol']]);
+            $sucursal = in_array($d['sucursal'] ?? '', ['cariari','guapiles','ambas']) ? $d['sucursal'] : 'cariari';
+            $stmt = $conn->prepare("INSERT INTO usuarios (nombre, usuario, contrasena, rol, sucursal) VALUES (?,?,?,?,?)");
+            $stmt->execute([$d['nombre'], $d['usuario'], password_hash($d['contrasena'], PASSWORD_DEFAULT), $d['rol'], $sucursal]);
             echo json_encode(['success'=>true]);
         } elseif($accion === 'editar') {
+            $sucursal = in_array($d['sucursal'] ?? '', ['cariari','guapiles','ambas']) ? $d['sucursal'] : 'cariari';
             if(!empty($d['contrasena'])) {
-                $stmt = $conn->prepare("UPDATE usuarios SET nombre=?, usuario=?, contrasena=?, rol=? WHERE id=?");
-                $stmt->execute([$d['nombre'], $d['usuario'], password_hash($d['contrasena'], PASSWORD_DEFAULT), $d['rol'], $d['id']]);
+                $stmt = $conn->prepare("UPDATE usuarios SET nombre=?, usuario=?, contrasena=?, rol=?, sucursal=? WHERE id=?");
+                $stmt->execute([$d['nombre'], $d['usuario'], password_hash($d['contrasena'], PASSWORD_DEFAULT), $d['rol'], $sucursal, $d['id']]);
             } else {
-                $stmt = $conn->prepare("UPDATE usuarios SET nombre=?, usuario=?, rol=? WHERE id=?");
-                $stmt->execute([$d['nombre'], $d['usuario'], $d['rol'], $d['id']]);
+                $stmt = $conn->prepare("UPDATE usuarios SET nombre=?, usuario=?, rol=?, sucursal=? WHERE id=?");
+                $stmt->execute([$d['nombre'], $d['usuario'], $d['rol'], $sucursal, $d['id']]);
             }
             echo json_encode(['success'=>true]);
         } elseif($accion === 'eliminar') {
@@ -44,9 +45,10 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$usuarios = $conn->query("SELECT id, nombre, usuario, rol FROM usuarios ORDER BY rol, nombre")->fetchAll();
-$roles = ['admin'=>'Admin','camarero'=>'Camarero','cocina'=>'Cocina'];
+$usuarios = $conn->query("SELECT id, nombre, usuario, rol, sucursal FROM usuarios ORDER BY rol, nombre")->fetchAll();
+$roles    = ['admin'=>'Admin','camarero'=>'Camarero','cocina'=>'Cocina'];
 $rolBadge = ['admin'=>'bdg-pur','camarero'=>'bdg-blu','cocina'=>'bdg-org'];
+$sucursalLabel = ['cariari'=>'Cariari','guapiles'=>'Guapiles','ambas'=>'Ambas'];
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -70,16 +72,17 @@ $rolBadge = ['admin'=>'bdg-pur','camarero'=>'bdg-blu','cocina'=>'bdg-org'];
       <div class="ec-head">Usuarios del sistema</div>
       <div class="ec-body np">
         <table class="et">
-          <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Sucursal</th><th>Acciones</th></tr></thead>
           <tbody>
           <?php foreach($usuarios as $u): ?>
             <tr>
               <td><strong><?= htmlspecialchars($u['nombre']) ?></strong></td>
               <td style="color:#888"><?= htmlspecialchars($u['usuario']) ?></td>
               <td><span class="bdg <?= $rolBadge[$u['rol']] ?? 'bdg-gry' ?>"><?= $roles[$u['rol']] ?? $u['rol'] ?></span></td>
+              <td><?= htmlspecialchars($sucursalLabel[$u['sucursal']] ?? $u['sucursal']) ?></td>
               <td style="display:flex;gap:6px">
                 <button class="eb gry" style="padding:5px 10px;font-size:12px"
-                  onclick='editarUsuario(<?= json_encode(['id'=>$u['id'],'nombre'=>$u['nombre'],'usuario'=>$u['usuario'],'rol'=>$u['rol']]) ?>)'>Editar</button>
+                  onclick='editarUsuario(<?= json_encode(['id'=>$u['id'],'nombre'=>$u['nombre'],'usuario'=>$u['usuario'],'rol'=>$u['rol'],'sucursal'=>$u['sucursal']]) ?>)'>Editar</button>
                 <?php if($u['id'] != $_SESSION['usuario_id']): ?>
                   <button class="eb red" style="padding:5px 10px;font-size:12px"
                     onclick="eliminarUsuario(<?= $u['id'] ?>, '<?= htmlspecialchars($u['nombre']) ?>')">Eliminar</button>
@@ -123,6 +126,14 @@ $rolBadge = ['admin'=>'bdg-pur','camarero'=>'bdg-blu','cocina'=>'bdg-org'];
           <option value="admin">Admin</option>
         </select>
       </div>
+      <div class="ef-group">
+        <label class="ef-label">Sucursal</label>
+        <select class="ef" id="uSucursal">
+          <option value="cariari">Cariari</option>
+          <option value="guapiles">Guapiles</option>
+          <option value="ambas">Ambas</option>
+        </select>
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
         <button class="eb gry" onclick="cerrar()">Cancelar</button>
         <button class="eb ora" onclick="guardar()">Guardar</button>
@@ -138,6 +149,7 @@ function abrirModal(u) {
   document.getElementById('uUsuario').value = u ? u.usuario : '';
   document.getElementById('uPass').value = '';
   document.getElementById('uRol').value = u ? u.rol : 'camarero';
+  document.getElementById('uSucursal').value = u ? (u.sucursal || 'cariari') : 'cariari';
   document.getElementById('passLabel').textContent = u ? 'Nueva contraseña (dejar vacío = no cambiar)' : 'Contraseña';
   document.getElementById('mTitle').textContent = u ? 'Editar usuario' : 'Nuevo usuario';
   document.getElementById('modal').style.display = 'flex';
@@ -154,6 +166,7 @@ function guardar() {
     usuario: document.getElementById('uUsuario').value.trim(),
     contrasena: document.getElementById('uPass').value,
     rol: document.getElementById('uRol').value,
+    sucursal: document.getElementById('uSucursal').value,
   };
   if(!body.nombre || !body.usuario) { alert('Nombre y usuario son obligatorios'); return; }
   if(!id && !body.contrasena) { alert('La contraseña es obligatoria para un nuevo usuario'); return; }

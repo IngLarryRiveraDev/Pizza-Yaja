@@ -216,7 +216,6 @@ try {
                     .then(r => r.json())
                     .then(res => {
                         if(res.success) {
-                            <?php unset($_SESSION['orden_actual']); ?>
                             mostrarNotificacion('Orden enviada a cocina.', 'success');
                             window.location.href = 'ordenes_activas.php';
                         } else {
@@ -225,7 +224,6 @@ try {
                     });
 
                 } else {
-                    <?php unset($_SESSION['orden_actual']); ?>
                     mostrarNotificacion('Orden guardada. Puedes pagarla después desde Órdenes Activas.', 'success');
                     window.location.href = 'ordenes_activas.php';
                 }

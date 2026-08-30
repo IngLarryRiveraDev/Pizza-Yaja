@@ -125,7 +125,7 @@ try {
     <div class="header">
         <div>
             <h1>🍕 Pizza Yaja</h1>
-            <span class="user-info">Camarero: <?php echo $_SESSION['nombre']; ?></span>
+            <span class="user-info">Camarero: <?php echo htmlspecialchars($_SESSION['nombre']); ?></span>
         </div>
         <a href="logout.php" class="logout-btn">Cerrar Sesión</a>
     </div>

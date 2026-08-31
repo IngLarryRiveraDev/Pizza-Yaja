@@ -33,13 +33,9 @@ a { text-decoration: none; color: inherit; }
   background: var(--sb-bg); display: flex; flex-direction: column;
   z-index: 200; transition: transform .25s ease;
 }
-.erp-brand { padding: 18px 16px 14px; border-bottom: 1px solid #1d1d1d; }
-.erp-brand-name {
-  font-size: 20px; font-weight: 900;
-  background: linear-gradient(135deg, #ff6b00, #ff9800);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-}
-.erp-brand-tag { font-size: 10px; color: #555; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+.erp-brand { padding: 12px 16px 12px; border-bottom: 1px solid #1d1d1d; text-align: center; }
+.erp-brand-logo { height: 72px; width: auto; mix-blend-mode: screen; filter: brightness(1.05); display: block; margin: 0 auto 4px; }
+.erp-brand-tag { font-size: 10px; color: #555; letter-spacing: 1.5px; text-transform: uppercase; }
 
 .erp-nav { flex: 1; padding: 8px 0; overflow-y: auto; }
 .erp-nav-sec { font-size: 10px; color: #444; letter-spacing: 1.5px; text-transform: uppercase; padding: 12px 16px 4px; }
@@ -205,7 +201,7 @@ a { text-decoration: none; color: inherit; }
 
 <aside class="erp-sb" id="erp-sb">
   <div class="erp-brand">
-    <div class="erp-brand-name">Pizza Yaja</div>
+    <img src="../web/img/Logo.jpeg" alt="Pizza Yaja" class="erp-brand-logo">
     <div class="erp-brand-tag">Sistema ERP</div>
   </div>
 

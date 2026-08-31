@@ -217,6 +217,7 @@ a { text-decoration: none; color: inherit; }
 
     <div class="erp-nav-sec">Configuración</div>
     <?= navItem('productos.php',  '🍕', 'Productos',   $currentPage) ?>
+    <?= navItem('combos.php',     '🎁', 'Combos',      $currentPage) ?>
     <?= navItem('usuarios.php',   '👥', 'Usuarios',    $currentPage) ?>
   </nav>
 

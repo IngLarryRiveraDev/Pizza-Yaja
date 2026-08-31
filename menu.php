@@ -147,7 +147,7 @@ try {
                     <a href="#" class="categoria-btn" onclick="abrirModalBebida(<?php echo $cat['id']; ?>, '<?php echo addslashes($cat['nombre']); ?>'); return false;">
                         <?php echo htmlspecialchars($cat['nombre']); ?>
                     </a>
-                <?php elseif(in_array($cat['id'], [3, 4])): ?>
+                <?php elseif(in_array($cat['id'], [3, 4, 11])): ?>
                     <a href="seleccionar_combo.php?categoria=<?php echo $cat['id']; ?>" class="categoria-btn">
                         <?php echo htmlspecialchars($cat['nombre']); ?>
                     </a>

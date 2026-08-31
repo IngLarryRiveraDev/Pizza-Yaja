@@ -2,7 +2,7 @@
 header('Content-Type: text/html; charset=UTF-8');
 session_start();
 
-if(!isset($_SESSION['usuario_id'])) {
+if(!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'admin') {
     header('Location: index.php');
     exit;
 }

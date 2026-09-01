@@ -502,26 +502,11 @@ function cerrarArqueo() {
 }
 
 function verificarArqueo() {
-    const pass = document.getElementById('arqueo_pass').value;
+    const pass = document.getElementById('arqueo_pass').value.trim();
     const err  = document.getElementById('arqueo_error');
     if(!pass) { err.textContent = 'Ingresá la contraseña'; return; }
-
-    fetch('verificar_arqueo.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ password: pass })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if(data.success) {
-            window.location.href = 'arqueo_caja.php?t=' + data.token;
-        } else {
-            err.textContent = data.error || 'Contraseña incorrecta';
-            document.getElementById('arqueo_pass').value = '';
-            document.getElementById('arqueo_pass').focus();
-        }
-    })
-    .catch(() => { err.textContent = 'Error de conexión'; });
+    document.getElementById('arqueo_pass_hidden').value = pass;
+    document.getElementById('form_arqueo').submit();
 }
 
 document.addEventListener('keydown', function(e) {
@@ -530,6 +515,11 @@ document.addEventListener('keydown', function(e) {
     }
 });
 </script>
+
+<!-- Form oculto para POST a arqueo_caja.php -->
+<form id="form_arqueo" method="POST" action="arqueo_caja.php">
+    <input type="hidden" name="arqueo_pass" id="arqueo_pass_hidden">
+</form>
 
 <!-- Modal arqueo de caja -->
 <div id="modal_arqueo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;">

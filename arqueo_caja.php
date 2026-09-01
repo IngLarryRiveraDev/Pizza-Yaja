@@ -2,12 +2,27 @@
 header('Content-Type: text/html; charset=UTF-8');
 session_start();
 
-$es_admin    = isset($_SESSION['rol']) && $_SESSION['rol'] === 'admin';
-$token       = $_GET['t'] ?? '';
-$token_ok    = hash_equals(hash_hmac('sha256', date('Y-m-d'), 'py_arqueo_2026'), $token);
-if(!isset($_SESSION['usuario_id']) || (!$es_admin && !$token_ok)) {
-    header('Location: ordenes_activas.php');
-    exit;
+if(!isset($_SESSION['usuario_id'])) {
+    header('Location: index.php'); exit;
+}
+
+$es_admin = isset($_SESSION['rol']) && $_SESSION['rol'] === 'admin';
+
+if(!$es_admin) {
+    require_once 'config.php';
+    $pass = $_POST['arqueo_pass'] ?? '';
+    $autorizado = false;
+    if(!empty($pass)) {
+        try {
+            $c = getConnection();
+            $s = $c->query("SELECT contrasena FROM usuarios WHERE rol = 'admin' LIMIT 1");
+            $a = $s->fetch(PDO::FETCH_ASSOC);
+            if($a && password_verify($pass, $a['contrasena'])) $autorizado = true;
+        } catch(PDOException $e) {}
+    }
+    if(!$autorizado) {
+        header('Location: ordenes_activas.php'); exit;
+    }
 }
 
 require_once 'config.php';

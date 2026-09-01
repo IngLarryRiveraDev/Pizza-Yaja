@@ -24,6 +24,7 @@ try {
 
     if($admin && password_verify($password, $admin['contrasena'])) {
         $_SESSION['arqueo_ok'] = date('Y-m-d');
+        session_write_close();
         echo json_encode(['success' => true]);
     } else {
         echo json_encode(['success' => false, 'error' => 'Contraseña incorrecta']);

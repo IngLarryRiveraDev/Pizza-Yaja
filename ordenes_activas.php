@@ -196,6 +196,7 @@ try {
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <a href="nueva_orden.php" class="back-btn">+ Nueva Orden</a>
         <a href="#" onclick="calzoneRapido(); return false;" class="btn-calzone-rapido">🧀 Calzone ₡1000</a>
+        <a href="#" onclick="abrirArqueo(); return false;" style="background:#ff9800; color:white; padding:8px 12px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px;">💰 Arqueo</a>
         <a href="logout.php" style="background:#c62828; color:white; padding:8px 12px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px;">Salir</a>
     </div>
 </div>
@@ -488,6 +489,65 @@ function confirmarCalzoneRapido() {
         }
     });
 }
+
+function abrirArqueo() {
+    document.getElementById('modal_arqueo').style.display = 'flex';
+    document.getElementById('arqueo_pass').value = '';
+    document.getElementById('arqueo_error').textContent = '';
+    setTimeout(() => document.getElementById('arqueo_pass').focus(), 100);
+}
+
+function cerrarArqueo() {
+    document.getElementById('modal_arqueo').style.display = 'none';
+}
+
+function verificarArqueo() {
+    const pass = document.getElementById('arqueo_pass').value;
+    const err  = document.getElementById('arqueo_error');
+    if(!pass) { err.textContent = 'Ingresá la contraseña'; return; }
+
+    fetch('verificar_arqueo.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ password: pass })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            window.location.href = 'arqueo_caja.php';
+        } else {
+            err.textContent = data.error || 'Contraseña incorrecta';
+            document.getElementById('arqueo_pass').value = '';
+            document.getElementById('arqueo_pass').focus();
+        }
+    })
+    .catch(() => { err.textContent = 'Error de conexión'; });
+}
+
+document.addEventListener('keydown', function(e) {
+    if(document.getElementById('modal_arqueo').style.display === 'flex' && e.key === 'Enter') {
+        verificarArqueo();
+    }
+});
 </script>
+
+<!-- Modal arqueo de caja -->
+<div id="modal_arqueo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:12px;padding:24px;width:90%;max-width:320px;text-align:center;">
+        <div style="font-size:36px;margin-bottom:8px;">💰</div>
+        <h2 style="color:#ff9800;font-size:18px;margin-bottom:6px;">Arqueo de Caja</h2>
+        <p style="color:#666;font-size:13px;margin-bottom:16px;">Ingresá la contraseña de la administración para continuar.</p>
+        <input type="password" id="arqueo_pass" placeholder="Contraseña"
+            style="width:100%;padding:12px;border:2px solid #ddd;border-radius:8px;font-size:18px;text-align:center;margin-bottom:10px;letter-spacing:4px;">
+        <div id="arqueo_error" style="color:#e53935;font-size:13px;min-height:18px;margin-bottom:10px;"></div>
+        <button onclick="verificarArqueo()" style="width:100%;padding:12px;background:#ff9800;color:white;border:none;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer;margin-bottom:8px;">
+            Entrar
+        </button>
+        <button onclick="cerrarArqueo()" style="width:100%;padding:10px;background:#eee;color:#555;border:none;border-radius:8px;font-size:14px;cursor:pointer;">
+            Cancelar
+        </button>
+    </div>
+</div>
+
 </body>
 </html>

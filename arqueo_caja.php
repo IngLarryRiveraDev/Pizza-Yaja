@@ -2,8 +2,10 @@
 header('Content-Type: text/html; charset=UTF-8');
 session_start();
 
-if(!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'admin') {
-    header('Location: index.php');
+$es_admin        = isset($_SESSION['rol']) && $_SESSION['rol'] === 'admin';
+$arqueo_ok       = isset($_SESSION['arqueo_ok']) && $_SESSION['arqueo_ok'] === date('Y-m-d');
+if(!isset($_SESSION['usuario_id']) || (!$es_admin && !$arqueo_ok)) {
+    header('Location: ordenes_activas.php');
     exit;
 }
 

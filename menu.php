@@ -133,7 +133,6 @@ try {
     <div class="top-buttons">
         <a href="ordenes_activas.php" class="top-btn" style="background: #2196f3;">← Órdenes Activas</a>
         <a href="ver_orden.php" class="top-btn">Ver Orden Actual</a>
-        <a href="arqueo_caja.php" class="top-btn arqueo-btn">Arqueo de Caja</a>
     </div>
     
     <div class="categorias-grid">

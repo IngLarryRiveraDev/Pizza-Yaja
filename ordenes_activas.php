@@ -514,7 +514,7 @@ function verificarArqueo() {
     .then(r => r.json())
     .then(data => {
         if(data.success) {
-            window.location.href = 'arqueo_caja.php';
+            window.location.href = 'arqueo_caja.php?t=' + data.token;
         } else {
             err.textContent = data.error || 'Contraseña incorrecta';
             document.getElementById('arqueo_pass').value = '';

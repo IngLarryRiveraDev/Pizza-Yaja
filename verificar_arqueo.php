@@ -23,9 +23,8 @@ try {
     $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if($admin && password_verify($password, $admin['contrasena'])) {
-        $_SESSION['arqueo_ok'] = date('Y-m-d');
-        session_write_close();
-        echo json_encode(['success' => true]);
+        $token = hash_hmac('sha256', date('Y-m-d'), 'py_arqueo_2026');
+        echo json_encode(['success' => true, 'token' => $token]);
     } else {
         echo json_encode(['success' => false, 'error' => 'Contraseña incorrecta']);
     }

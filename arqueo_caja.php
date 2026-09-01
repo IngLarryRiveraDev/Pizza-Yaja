@@ -2,9 +2,10 @@
 header('Content-Type: text/html; charset=UTF-8');
 session_start();
 
-$es_admin        = isset($_SESSION['rol']) && $_SESSION['rol'] === 'admin';
-$arqueo_ok       = isset($_SESSION['arqueo_ok']) && $_SESSION['arqueo_ok'] === date('Y-m-d');
-if(!isset($_SESSION['usuario_id']) || (!$es_admin && !$arqueo_ok)) {
+$es_admin    = isset($_SESSION['rol']) && $_SESSION['rol'] === 'admin';
+$token       = $_GET['t'] ?? '';
+$token_ok    = hash_equals(hash_hmac('sha256', date('Y-m-d'), 'py_arqueo_2026'), $token);
+if(!isset($_SESSION['usuario_id']) || (!$es_admin && !$token_ok)) {
     header('Location: ordenes_activas.php');
     exit;
 }

@@ -139,7 +139,10 @@ try {
 
 <div class="header">
     <h1>💰 Arqueo de Caja</h1>
-    <a href="menu.php" class="back-btn">← Volver</a>
+    <div style="display:flex;gap:8px;align-items:center">
+        <a href="exportar_arqueo.php?fecha=<?php echo htmlspecialchars($fecha); ?>" class="back-btn" style="background:#4caf50">⬇ Exportar Excel</a>
+        <a href="menu.php" class="back-btn">← Volver</a>
+    </div>
 </div>
 
 <!-- Filtro de fecha -->

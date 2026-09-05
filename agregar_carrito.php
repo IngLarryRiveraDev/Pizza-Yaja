@@ -28,23 +28,25 @@ try {
     $producto_nombre = '';
     $notas = $datos['comentarios'] ?? '';
     
+    $qp = fn($n) => preg_replace('/^Pizza\s+/i', '', $n ?? '');
+
     if($datos['tipo'] == 'pizza_2x1') {
         $producto_nombre = "Pizza 2x1 - " . $datos['tamano'];
         $detalles = $datos['detalles'];
-        
-        $descripcion_sabores = "Pizza 1: " . ($detalles['cambio_pizza1'] && isset($detalles['pizza1']) ? $detalles['pizza1']['nombre'] : 'Jamón y Queso');
-        $descripcion_sabores .= " | Pizza 2: " . ($detalles['pizza2']['nombre'] ?? 'Sin especificar');
-        
+
+        $descripcion_sabores = "Pizza 1: " . $qp($detalles['cambio_pizza1'] && isset($detalles['pizza1']) ? $detalles['pizza1']['nombre'] : 'Jamón y Queso');
+        $descripcion_sabores .= " | Pizza 2: " . $qp($detalles['pizza2']['nombre'] ?? 'Sin especificar');
+
         $notas = $descripcion_sabores . ($notas ? " - " . $notas : "");
-        
+
     } elseif($datos['tipo'] == 'pizza_individual') {
         $producto_nombre = "Pizza Individual - " . $datos['tamano'];
         $detalles = $datos['detalles'];
-        
+
         if($detalles['es_mitad_mitad']) {
-            $descripcion_sabores = "Mitad: " . ($detalles['mitad1']['nombre'] ?? '?') . " | Mitad: " . ($detalles['mitad2']['nombre'] ?? '?');
+            $descripcion_sabores = "Mitad: " . $qp($detalles['mitad1']['nombre'] ?? '?') . " | Mitad: " . $qp($detalles['mitad2']['nombre'] ?? '?');
         } else {
-            $descripcion_sabores = "Sabor: " . ($detalles['pizza1']['nombre'] ?? 'Sin especificar');
+            $descripcion_sabores = "Sabor: " . $qp($detalles['pizza1']['nombre'] ?? 'Sin especificar');
         }
         
         $notas = $descripcion_sabores . ($notas ? " - " . $notas : "");

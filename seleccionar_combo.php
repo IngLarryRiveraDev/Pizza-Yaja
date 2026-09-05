@@ -309,10 +309,11 @@ function agregarCombo() {
     }
 
     // Construir descripción
+    const qp = s => s ? s.replace(/^Pizza\s+/i, '') : s;
     let partes = [c.nombre];
-    if(state.pizza1 && !state.pizza2) partes.push(state.pizza1);
-    if(state.pizza1 && state.pizza2)  partes.push('P1: ' + state.pizza1, 'P2: ' + state.pizza2);
-    if(state.calzone)                 partes.push('Calzone: ' + state.calzone);
+    if(state.pizza1 && !state.pizza2) partes.push(qp(state.pizza1));
+    if(state.pizza1 && state.pizza2)  partes.push('P1: ' + qp(state.pizza1), 'P2: ' + qp(state.pizza2));
+    if(state.calzone)                 partes.push('Calzone: ' + qp(state.calzone));
     if(state.bebida)                  partes.push(state.bebida);
     const descripcion = partes.join(' — ');
 

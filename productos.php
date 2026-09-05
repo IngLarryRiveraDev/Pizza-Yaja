@@ -23,7 +23,7 @@ try {
     $es_pizza = in_array($categoria_id, [1, 2]);
 
     // Categorías de bebida (muestran modal con dropdown de sabores)
-    $es_bebida = in_array($categoria_id, [7, 8, 9]);
+    $es_bebida = in_array($categoria_id, [7, 8]);
 
     if($es_pizza) {
         $tabla_tamanos = ($categoria_id == 1) ? 'tamanos_pizza_2x1' : 'tamanos_pizza_individual';

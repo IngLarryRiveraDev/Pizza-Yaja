@@ -18,7 +18,7 @@ try {
     $categorias = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Cargar sabores de bebidas agrupados por categoría para los modales
-    $stmt = $conn->query("SELECT id, categoria_id, nombre, precio FROM productos WHERE categoria_id IN (7, 8, 9) AND activo = 1 ORDER BY nombre ASC");
+    $stmt = $conn->query("SELECT id, categoria_id, nombre, precio FROM productos WHERE categoria_id IN (7, 8) AND activo = 1 ORDER BY nombre ASC");
     $bebidas_all = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $bebidas_por_cat = [];
     foreach($bebidas_all as $b) {
@@ -142,7 +142,7 @@ try {
             </p>
         <?php else: ?>
             <?php foreach($categorias as $cat): ?>
-                <?php if(in_array($cat['id'], [7, 8, 9])): ?>
+                <?php if(in_array($cat['id'], [7, 8])): ?>
                     <a href="#" class="categoria-btn" onclick="abrirModalBebida(<?php echo $cat['id']; ?>, '<?php echo addslashes($cat['nombre']); ?>'); return false;">
                         <?php echo htmlspecialchars($cat['nombre']); ?>
                     </a>

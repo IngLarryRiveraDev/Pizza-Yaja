@@ -25,13 +25,13 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $d['accion'] ?? '';
     try {
         if($accion === 'crear') {
-            $stmt = $conn->prepare("INSERT INTO productos (nombre, descripcion, precio, categoria, disponible) VALUES (?,?,?,?,1)");
-            $stmt->execute([$d['nombre'], $d['descripcion'] ?? '', $d['precio'], $d['categoria']]);
+            $stmt = $conn->prepare("INSERT INTO productos (nombre, descripcion, precio, categoria, categoria_id, disponible, activo) VALUES (?,?,?,?,?,1,1)");
+            $stmt->execute([$d['nombre'], $d['descripcion'] ?? '', $d['precio'], $d['categoria'], $d['categoria_id']]);
             echo json_encode(['success'=>true, 'id'=>$conn->lastInsertId()]);
 
         } elseif($accion === 'editar') {
-            $stmt = $conn->prepare("UPDATE productos SET nombre=?, descripcion=?, precio=?, categoria=?, disponible=? WHERE id=?");
-            $stmt->execute([$d['nombre'], $d['descripcion'] ?? '', $d['precio'], $d['categoria'], $d['disponible'], $d['id']]);
+            $stmt = $conn->prepare("UPDATE productos SET nombre=?, descripcion=?, precio=?, categoria=?, categoria_id=?, disponible=? WHERE id=?");
+            $stmt->execute([$d['nombre'], $d['descripcion'] ?? '', $d['precio'], $d['categoria'], $d['categoria_id'], $d['disponible'], $d['id']]);
             echo json_encode(['success'=>true]);
 
         } elseif($accion === 'toggle') {
@@ -83,6 +83,7 @@ try { $conn->exec("ALTER TABLE productos ADD COLUMN descripcion TEXT");         
 try { $conn->exec("ALTER TABLE productos ADD COLUMN disponible TINYINT(1) NOT NULL DEFAULT 1");         } catch(PDOException $e) {}
 
 $productos  = $conn->query("SELECT * FROM productos ORDER BY categoria, nombre")->fetchAll();
+$cats_tabla = $conn->query("SELECT id, nombre FROM categorias ORDER BY orden, nombre")->fetchAll();
 $categorias = array_unique(array_column($productos, 'categoria'));
 sort($categorias);
 
@@ -179,10 +180,15 @@ try {
       </div>
       <div class="ef-group">
         <label class="ef-label">Categoría</label>
-        <input class="ef" id="pCat" list="cats" placeholder="Ej: Pizzas, Bebidas">
-        <datalist id="cats">
-          <?php foreach($categorias as $c): ?><option value="<?= htmlspecialchars($c) ?>"><?php endforeach; ?>
-        </datalist>
+        <select class="ef" id="pCat">
+          <option value="">-- Seleccioná --</option>
+          <?php foreach($cats_tabla as $c): ?>
+            <option value="<?= $c['id'] ?>" data-nombre="<?= htmlspecialchars($c['nombre']) ?>">
+              <?= htmlspecialchars($c['nombre']) ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+        <input type="hidden" id="pCatNombre">
       </div>
       <div id="pDisponibleWrap" style="display:none" class="ef-group">
         <label class="ef-label">Estado</label>
@@ -251,7 +257,7 @@ function abrirModal(p) {
   document.getElementById('pNombre').value     = p ? p.nombre : '';
   document.getElementById('pDesc').value       = p ? (p.descripcion||'') : '';
   document.getElementById('pPrecio').value     = p ? p.precio : '';
-  document.getElementById('pCat').value        = p ? p.categoria : '';
+  document.getElementById('pCat').value        = p ? (p.categoria_id || '') : '';
   document.getElementById('pDisponible').value = p ? p.disponible : 1;
   document.getElementById('pDisponibleWrap').style.display = p ? 'block' : 'none';
   document.getElementById('mTitle').textContent = p ? 'Editar producto' : 'Nuevo producto';
@@ -266,12 +272,13 @@ function guardar() {
     accion:      id ? 'editar' : 'crear',
     id:          id || undefined,
     nombre:      document.getElementById('pNombre').value.trim(),
-    descripcion: document.getElementById('pDesc').value.trim(),
-    precio:      parseFloat(document.getElementById('pPrecio').value),
-    categoria:   document.getElementById('pCat').value.trim(),
-    disponible:  parseInt(document.getElementById('pDisponible').value),
+    descripcion:  document.getElementById('pDesc').value.trim(),
+    precio:       parseFloat(document.getElementById('pPrecio').value),
+    categoria_id: parseInt(document.getElementById('pCat').value),
+    categoria:    document.getElementById('pCat').selectedOptions[0]?.dataset.nombre || '',
+    disponible:   parseInt(document.getElementById('pDisponible').value),
   };
-  if(!body.nombre || !body.precio || !body.categoria) {
+  if(!body.nombre || !body.precio || !body.categoria_id) {
     alert('Nombre, precio y categoría son obligatorios'); return;
   }
   fetch('productos.php', {

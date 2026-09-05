@@ -446,6 +446,182 @@
     .btn-map:hover { border-color: #4285f4; color: #6ba3f5; }
 
     /* ============================================
+       CARRITO / PEDIDOS ONLINE
+    ============================================ */
+    .promo-banner {
+      background: linear-gradient(90deg, rgba(255,107,0,.14), rgba(255,107,0,.04));
+      border-bottom: 1px solid var(--border);
+      padding: 10px 5vw;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      flex-wrap: wrap; text-align: center;
+      font-size: 13px; font-weight: 600; color: var(--orange-lt);
+      margin-top: 66px;
+    }
+    .promo-banner .status-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #2ecc71;
+      display: inline-block; animation: blink 2s ease-in-out infinite; flex-shrink: 0;
+    }
+    .promo-banner.closed .status-dot { background: #e53935; }
+    .promo-banner a {
+      background: var(--orange); color: white; padding: 4px 14px;
+      border-radius: 50px; font-size: 12px; font-weight: 700;
+      white-space: nowrap; cursor: pointer;
+    }
+
+    .add-btn {
+      background: var(--orange); color: white; border: none;
+      width: 30px; height: 30px; border-radius: 50%;
+      font-size: 18px; font-weight: 700; line-height: 1; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: var(--t); flex-shrink: 0;
+    }
+    .add-btn:hover { background: var(--orange-lt); transform: scale(1.08); }
+    .add-btn.small { width: 24px; height: 24px; font-size: 14px; margin: 8px auto 0; }
+
+    .card-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+
+    .tag.tag-addable { cursor: pointer; }
+    .tag.tag-addable:hover { border-color: var(--orange); background: rgba(255,107,0,.1); }
+    .tag.tag-addable .tag-plus { color: var(--orange-lt); font-weight: 700; margin-left: 6px; }
+
+    /* Botón flotante carrito */
+    .cart-fab {
+      position: fixed; bottom: 24px; right: 24px; z-index: 1200;
+      width: 60px; height: 60px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--orange), var(--orange-lt));
+      color: white; border: none; font-size: 26px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 8px 24px rgba(255,107,0,.45);
+      transition: transform var(--t);
+    }
+    .cart-fab:hover { transform: scale(1.06); }
+    .cart-fab-badge {
+      position: absolute; top: -4px; right: -4px;
+      background: #e53935; color: white; font-size: 12px; font-weight: 700;
+      min-width: 22px; height: 22px; border-radius: 50%;
+      align-items: center; justify-content: center;
+      border: 2px solid var(--bg); padding: 0 4px;
+    }
+
+    .cart-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      z-index: 1300; opacity: 0; pointer-events: none; transition: opacity var(--t);
+    }
+    .cart-overlay.open { opacity: 1; pointer-events: auto; }
+
+    .cart-drawer {
+      position: fixed; top: 0; right: 0; bottom: 0; z-index: 1301;
+      width: min(420px, 100vw);
+      background: var(--surface); border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      transform: translateX(100%); transition: transform .35s ease;
+    }
+    .cart-drawer.open { transform: translateX(0); }
+
+    .cart-header {
+      padding: 20px 22px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    .cart-header h3 { font-family: var(--font-h); font-size: 20px; }
+    .cart-close {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px;
+    }
+
+    .cart-body { flex: 1; overflow-y: auto; padding: 16px 22px; }
+    .cart-empty { text-align: center; color: var(--muted); padding: 60px 10px; font-size: 14px; line-height: 1.8; }
+
+    .cart-item {
+      display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border);
+      justify-content: space-between;
+    }
+    .cart-item-info { flex: 1; min-width: 0; }
+    .cart-item-name { font-size: 14px; font-weight: 700; }
+    .cart-item-note { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .cart-item-price { font-size: 13px; color: var(--orange-lt); font-weight: 700; margin-top: 4px; }
+    .cart-item-qty { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .qty-btn {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+    }
+    .qty-btn:hover { border-color: var(--orange); }
+    .cart-item-remove {
+      background: none; border: none; color: var(--muted); font-size: 12px;
+      cursor: pointer; margin-top: 6px; display: block; text-align: right; width: 100%;
+    }
+    .cart-item-remove:hover { color: #e53935; }
+
+    .cart-footer { padding: 18px 22px 22px; border-top: 1px solid var(--border); flex-shrink: 0; }
+    .cart-total { display: flex; justify-content: space-between; align-items: center; font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+    .cart-total span:last-child { color: var(--orange-lt); font-size: 22px; }
+
+    .cart-btn-primary {
+      display: block; width: 100%; text-align: center;
+      background: linear-gradient(135deg, var(--orange), var(--orange-lt));
+      color: white; font-weight: 700; font-size: 15px;
+      padding: 14px; border-radius: 50px; border: none; cursor: pointer;
+      transition: var(--t);
+    }
+    .cart-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,107,0,.4); }
+    .cart-btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .cart-btn-back {
+      background: none; border: none; color: var(--muted); font-size: 13px;
+      cursor: pointer; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;
+    }
+    .cart-btn-back:hover { color: var(--text); }
+
+    .cf-group { margin-bottom: 14px; }
+    .cf-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; display: block; }
+    .cf-input, .cf-select, .cf-textarea {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); padding: 11px 14px; border-radius: 10px; font-size: 14px;
+      font-family: var(--font-b);
+    }
+    .cf-input:focus, .cf-select:focus, .cf-textarea:focus { outline: none; border-color: var(--orange); }
+    .cf-textarea { resize: vertical; min-height: 60px; }
+    .cf-radios { display: flex; gap: 10px; }
+    .cf-radio {
+      flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface2); text-align: center; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: var(--t);
+    }
+    .cf-radio.active { border-color: var(--orange); color: var(--orange-lt); background: rgba(255,107,0,.1); }
+
+    .sabor-modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 1400;
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .sabor-modal-overlay.open { display: flex; }
+    .sabor-modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+      width: 100%; max-width: 380px; padding: 24px;
+    }
+    .sabor-modal h4 { font-family: var(--font-h); font-size: 18px; margin-bottom: 4px; }
+    .sabor-modal .sabor-precio { color: var(--orange-lt); font-weight: 700; margin-bottom: 18px; }
+    .sabor-modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+    .sabor-modal-actions button { flex: 1; }
+    .btn-cancel {
+      background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+      padding: 12px; border-radius: 50px; cursor: pointer; font-weight: 600; font-size: 14px;
+    }
+
+    .cart-toast {
+      position: fixed; bottom: 96px; right: 24px; z-index: 1250;
+      background: var(--surface2); border: 1px solid var(--orange); color: var(--text);
+      padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      transform: translateY(20px); opacity: 0; pointer-events: none;
+      transition: transform .25s ease, opacity .25s ease;
+    }
+    .cart-toast.show { transform: translateY(0); opacity: 1; }
+
+    @media (max-width: 480px) {
+      .cart-drawer { width: 100vw; }
+    }
+
+    /* ============================================
        FOOTER
     ============================================ */
     footer {
@@ -550,6 +726,14 @@
     <a href="tel:+50685756873" class="mob-cta" onclick="closeMob()">📞 Llamar Ahora</a>
   </div>
 
+  <!-- ===================== BANNER PEDIDOS ONLINE ===================== -->
+  <div class="promo-banner" id="promoBanner">
+    <span class="status-dot"></span>
+    <span id="promoStatus">Abierto ahora</span>
+    <span>· Pedí en línea y saltate la fila 🚀</span>
+    <a onclick="abrirCarrito()">Pedir ahora</a>
+  </div>
+
   <!-- ===================== HERO ===================== -->
   <section class="hero" id="inicio">
     <div class="hero-glow"></div>
@@ -574,7 +758,8 @@
       </h1>
       <p>Las mejores pizzas artesanales de la zona, hechas con ingredientes frescos y el amor que cada platillo merece. Encontranos en Cariari y Guápiles.</p>
       <div class="hero-btns">
-        <a href="#menu" class="btn-primary">Ver Menú Completo</a>
+        <a onclick="abrirCarrito()" class="btn-primary">🛒 Pedir Ahora</a>
+        <a href="#menu" class="btn-outline">Ver Menú Completo</a>
         <a href="#sucursales" class="btn-outline">Nuestras Sucursales</a>
       </div>
     </div>
@@ -645,11 +830,11 @@
             <span class="badge badge-orange">+17 Sabores</span>
           </div>
           <div class="sizes-table">
-            <div class="sz"><div class="sz-name">Personal</div><div class="sz-info">4 porciones</div><div class="sz-price">₡2,500</div></div>
-            <div class="sz"><div class="sz-name">Pequeña</div><div class="sz-info">6 porciones</div><div class="sz-price">₡5,500</div></div>
-            <div class="sz"><div class="sz-name">Mediana</div><div class="sz-info">8 porciones</div><div class="sz-price">₡8,000</div></div>
-            <div class="sz"><div class="sz-name">Grande</div><div class="sz-info">12 porciones</div><div class="sz-price">₡9,000</div></div>
-            <div class="sz"><div class="sz-name">Familiar</div><div class="sz-info">16 porciones</div><div class="sz-price">₡10,000</div></div>
+            <div class="sz"><div class="sz-name">Personal</div><div class="sz-info">4 porciones</div><div class="sz-price">₡2,500</div><button class="add-btn small" onclick='abrirSelectorSabor("Pizza Individual Personal", 2500, SABORES_PIZZA, 1)'>+</button></div>
+            <div class="sz"><div class="sz-name">Pequeña</div><div class="sz-info">6 porciones</div><div class="sz-price">₡5,500</div><button class="add-btn small" onclick='abrirSelectorSabor("Pizza Individual Pequeña", 5500, SABORES_PIZZA, 1)'>+</button></div>
+            <div class="sz"><div class="sz-name">Mediana</div><div class="sz-info">8 porciones</div><div class="sz-price">₡8,000</div><button class="add-btn small" onclick='abrirSelectorSabor("Pizza Individual Mediana", 8000, SABORES_PIZZA, 1)'>+</button></div>
+            <div class="sz"><div class="sz-name">Grande</div><div class="sz-info">12 porciones</div><div class="sz-price">₡9,000</div><button class="add-btn small" onclick='abrirSelectorSabor("Pizza Individual Grande", 9000, SABORES_PIZZA, 1)'>+</button></div>
+            <div class="sz"><div class="sz-name">Familiar</div><div class="sz-info">16 porciones</div><div class="sz-price">₡10,000</div><button class="add-btn small" onclick='abrirSelectorSabor("Pizza Individual Familiar", 10000, SABORES_PIZZA, 1)'>+</button></div>
           </div>
         </div>
 
@@ -659,10 +844,10 @@
             <span class="badge badge-red">¡Llevate dos!</span>
           </div>
           <div class="sizes-table cols4">
-            <div class="sz"><div class="sz-name">Pequeña</div><div class="sz-info">6 c/u</div><div class="sz-price">₡8,500</div></div>
-            <div class="sz"><div class="sz-name">Mediana</div><div class="sz-info">8 c/u</div><div class="sz-price">₡12,500</div></div>
-            <div class="sz"><div class="sz-name">Grande</div><div class="sz-info">12 c/u</div><div class="sz-price">₡13,500</div></div>
-            <div class="sz"><div class="sz-name">Familiar</div><div class="sz-info">16 c/u</div><div class="sz-price">₡17,000</div></div>
+            <div class="sz"><div class="sz-name">Pequeña</div><div class="sz-info">6 c/u</div><div class="sz-price">₡8,500</div><button class="add-btn small" onclick='abrirSelectorSabor("Pizza 2x1 Pequeña", 8500, SABORES_PIZZA, 2)'>+</button></div>
+            <div class="sz"><div class="sz-name">Mediana</div><div class="sz-info">8 c/u</div><div class="sz-price">₡12,500</div><button class="add-btn small" onclick='abrirSelectorSabor("Pizza 2x1 Mediana", 12500, SABORES_PIZZA, 2)'>+</button></div>
+            <div class="sz"><div class="sz-name">Grande</div><div class="sz-info">12 c/u</div><div class="sz-price">₡13,500</div><button class="add-btn small" onclick='abrirSelectorSabor("Pizza 2x1 Grande", 13500, SABORES_PIZZA, 2)'>+</button></div>
+            <div class="sz"><div class="sz-name">Familiar</div><div class="sz-info">16 c/u</div><div class="sz-price">₡17,000</div><button class="add-btn small" onclick='abrirSelectorSabor("Pizza 2x1 Familiar", 17000, SABORES_PIZZA, 2)'>+</button></div>
           </div>
         </div>
 
@@ -701,7 +886,10 @@
           <div class="card-body">
             <div class="card-name">Jamón y Queso</div>
             <div class="card-desc">Clásico calzone relleno de jamón y queso derretido</div>
-            <div class="card-price">₡1,000</div>
+            <div class="card-footer">
+              <div class="card-price">₡1,000</div>
+              <button class="add-btn" onclick='agregarAlCarrito("Calzone Jamón y Queso", 1000)'>+</button>
+            </div>
           </div>
         </div>
         <div class="menu-card reveal">
@@ -711,7 +899,10 @@
           <div class="card-body">
             <div class="card-name">Extra Queso</div>
             <div class="card-desc">Para los amantes del queso derretido a cada mordida</div>
-            <div class="card-price">₡2,000</div>
+            <div class="card-footer">
+              <div class="card-price">₡2,000</div>
+              <button class="add-btn" onclick='agregarAlCarrito("Calzone Extra Queso", 2000)'>+</button>
+            </div>
           </div>
         </div>
         <div class="menu-card reveal">
@@ -721,7 +912,10 @@
           <div class="card-body">
             <div class="card-name">Sabor a Elegir</div>
             <div class="card-desc">Escogé tu sabor favorito de nuestra lista de pizzas</div>
-            <div class="card-price">₡2,500</div>
+            <div class="card-footer">
+              <div class="card-price">₡2,500</div>
+              <button class="add-btn" onclick='abrirSelectorSabor("Calzone Sabor a Elegir", 2500, SABORES_PIZZA, 1)'>+</button>
+            </div>
           </div>
         </div>
         <div class="menu-card reveal">
@@ -731,7 +925,10 @@
           <div class="card-body">
             <div class="card-name">Calzone Grande</div>
             <div class="card-desc">El más grande, perfecto para compartir o para los más hambrientos</div>
-            <div class="card-price">₡3,500</div>
+            <div class="card-footer">
+              <div class="card-price">₡3,500</div>
+              <button class="add-btn" onclick='abrirSelectorSabor("Calzone Grande", 3500, SABORES_PIZZA, 1)'>+</button>
+            </div>
           </div>
         </div>
       </div>
@@ -747,7 +944,10 @@
           <div class="card-body">
             <div class="card-name">Spaguettis</div>
             <div class="card-desc">Espaguetis al estilo de la casa con nuestra salsa especial</div>
-            <div class="card-price">₡3,000</div>
+            <div class="card-footer">
+              <div class="card-price">₡3,000</div>
+              <button class="add-btn" onclick='agregarAlCarrito("Spaguettis", 3000)'>+</button>
+            </div>
           </div>
         </div>
         <div class="menu-card reveal">
@@ -757,7 +957,10 @@
           <div class="card-body">
             <div class="card-name">Lasaña</div>
             <div class="card-desc">Lasaña tradicional en capas con carne y queso gratinado</div>
-            <div class="card-price">₡3,500</div>
+            <div class="card-footer">
+              <div class="card-price">₡3,500</div>
+              <button class="add-btn" onclick='agregarAlCarrito("Lasaña", 3500)'>+</button>
+            </div>
           </div>
         </div>
       </div>
@@ -770,6 +973,7 @@
           <div class="sizes-header">
             <h3>Batidos en Agua</h3>
             <span class="badge badge-blue">₡1,600 c/u</span>
+            <button class="add-btn small" style="margin:0 0 0 auto" onclick='abrirSelectorSabor("Batido en Agua", 1600, SABORES_BATIDO_AGUA, 1)'>+</button>
           </div>
           <div style="padding:16px 22px">
             <div class="tags">
@@ -797,22 +1001,22 @@
           </div>
           <div style="padding:16px 22px">
             <div class="tags">
-              <span class="tag">Banano <span class="tag-price">₡2,300</span></span>
-              <span class="tag">Chicle <span class="tag-price">₡2,300</span></span>
-              <span class="tag">Chocolate <span class="tag-price">₡2,300</span></span>
-              <span class="tag">Churchill <span class="tag-price">₡2,300</span></span>
-              <span class="tag">Fresa <span class="tag-price">₡2,300</span></span>
-              <span class="tag">Fresa con Crema <span class="tag-price">₡2,500</span></span>
-              <span class="tag">Guanábana <span class="tag-price">₡2,300</span></span>
-              <span class="tag">Mango <span class="tag-price">₡2,300</span></span>
-              <span class="tag">Mangonada <span class="tag-price">₡2,000</span></span>
-              <span class="tag">Melón <span class="tag-price">₡2,300</span></span>
-              <span class="tag">Menta <span class="tag-price">₡2,300</span></span>
-              <span class="tag">Mora <span class="tag-price">₡2,300</span></span>
-              <span class="tag">Oreo <span class="tag-price">₡2,300</span></span>
-              <span class="tag">Papaya <span class="tag-price">₡2,300</span></span>
-              <span class="tag">Piña <span class="tag-price">₡2,300</span></span>
-              <span class="tag">Sandía <span class="tag-price">₡2,300</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Banano", 2300)'>Banano <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Chicle", 2300)'>Chicle <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Chocolate", 2300)'>Chocolate <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Churchill", 2300)'>Churchill <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Fresa", 2300)'>Fresa <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Fresa con Crema", 2500)'>Fresa con Crema <span class="tag-price">₡2,500</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Guanábana", 2300)'>Guanábana <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Mango", 2300)'>Mango <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Mangonada", 2000)'>Mangonada <span class="tag-price">₡2,000</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Melón", 2300)'>Melón <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Menta", 2300)'>Menta <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Mora", 2300)'>Mora <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Oreo", 2300)'>Oreo <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Papaya", 2300)'>Papaya <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Piña", 2300)'>Piña <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
+              <span class="tag tag-addable" onclick='agregarAlCarrito("Batido en Leche - Sandía", 2300)'>Sandía <span class="tag-price">₡2,300</span><span class="tag-plus">+</span></span>
             </div>
           </div>
         </div>
@@ -826,31 +1030,31 @@
           <div class="card-img">
             <img src="img/cafe.jpeg" alt="Café Negro" loading="lazy">
           </div>
-          <div class="card-body"><div class="card-name">Café Negro</div><div class="card-price">₡700</div></div>
+          <div class="card-body"><div class="card-name">Café Negro</div><div class="card-footer"><div class="card-price">₡700</div><button class="add-btn" onclick='agregarAlCarrito("Café Negro", 700)'>+</button></div></div>
         </div>
         <div class="menu-card reveal">
           <div class="card-img">
             <img src="img/cafe.jpeg" alt="Café con Leche" loading="lazy">
           </div>
-          <div class="card-body"><div class="card-name">Café con Leche</div><div class="card-price">₡1,000</div></div>
+          <div class="card-body"><div class="card-name">Café con Leche</div><div class="card-footer"><div class="card-price">₡1,000</div><button class="add-btn" onclick='agregarAlCarrito("Café con Leche", 1000)'>+</button></div></div>
         </div>
         <div class="menu-card reveal">
           <div class="card-img">
             <img src="img/cafe.jpeg" alt="Chocolate" loading="lazy">
           </div>
-          <div class="card-body"><div class="card-name">Chocolate</div><div class="card-price">₡1,000</div></div>
+          <div class="card-body"><div class="card-name">Chocolate</div><div class="card-footer"><div class="card-price">₡1,000</div><button class="add-btn" onclick='agregarAlCarrito("Chocolate", 1000)'>+</button></div></div>
         </div>
         <div class="menu-card reveal">
           <div class="card-img">
             <img src="https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=600&auto=format&fit=crop&q=80" alt="Capuchino" loading="lazy" onerror="this.style.display='none'">
           </div>
-          <div class="card-body"><div class="card-name">Capuchino</div><div class="card-price">₡1,300</div></div>
+          <div class="card-body"><div class="card-name">Capuchino</div><div class="card-footer"><div class="card-price">₡1,300</div><button class="add-btn" onclick='agregarAlCarrito("Capuchino", 1300)'>+</button></div></div>
         </div>
         <div class="menu-card reveal">
           <div class="card-img">
             <img src="https://images.unsplash.com/photo-1497935586351-b67a49e012bf?w=600&auto=format&fit=crop&q=80" alt="Capuchino con Chantilly" loading="lazy" onerror="this.style.display='none'">
           </div>
-          <div class="card-body"><div class="card-name">Capuchino con Chantilly</div><div class="card-price">₡1,500</div></div>
+          <div class="card-body"><div class="card-name">Capuchino con Chantilly</div><div class="card-footer"><div class="card-price">₡1,500</div><button class="add-btn" onclick='agregarAlCarrito("Capuchino con Chantilly", 1500)'>+</button></div></div>
         </div>
         <div class="menu-card reveal">
           <div class="card-img">
@@ -859,7 +1063,10 @@
           <div class="card-body">
             <div class="card-name">Milkshakes</div>
             <div class="card-desc">Caramelo · Chicle · Chocolate · Churchill · Fresa · Menta · Oreo · Piña Colada</div>
-            <div class="card-price">₡3,500 <small>c/u</small></div>
+            <div class="card-footer">
+              <div class="card-price">₡3,500 <small>c/u</small></div>
+              <button class="add-btn" onclick='abrirSelectorSabor("Milkshake", 3500, SABORES_MILKSHAKE, 1)'>+</button>
+            </div>
           </div>
         </div>
       </div>
@@ -969,6 +1176,91 @@
     </div>
   </footer>
 
+  <!-- ===================== CARRITO FLOTANTE ===================== -->
+  <button class="cart-fab" onclick="abrirCarrito()" aria-label="Ver carrito">
+    🛒
+    <span class="cart-fab-badge" id="cartBadge" style="display:none">0</span>
+  </button>
+
+  <div class="cart-overlay" id="cartOverlay" onclick="cerrarCarrito()"></div>
+  <div class="cart-drawer" id="cartDrawer">
+    <div class="cart-header">
+      <h3>🛒 Tu Pedido</h3>
+      <button class="cart-close" onclick="cerrarCarrito()">✕</button>
+    </div>
+
+    <!-- PASO 1: carrito -->
+    <div id="cartStep1" style="display:flex;flex-direction:column;flex:1;min-height:0">
+      <div class="cart-body" id="cartBody"></div>
+      <div class="cart-footer">
+        <div class="cart-total"><span>Total</span><span id="cartTotal">₡0</span></div>
+        <button class="cart-btn-primary" id="cartCheckoutBtn" onclick="irACheckout()" disabled>Continuar pedido →</button>
+      </div>
+    </div>
+
+    <!-- PASO 2: checkout -->
+    <div id="cartStep2" style="display:none;flex-direction:column;flex:1;min-height:0">
+      <div class="cart-body">
+        <button class="cart-btn-back" onclick="volverAlCarrito()">← Volver al carrito</button>
+
+        <div class="cf-group">
+          <label class="cf-label">Sucursal</label>
+          <div class="cf-radios">
+            <div class="cf-radio cf-sede active" onclick="elegirSede('cariari', this)">📍 Cariari</div>
+            <div class="cf-radio cf-sede" onclick="elegirSede('guapiles', this)">📍 Guápiles</div>
+          </div>
+        </div>
+
+        <div class="cf-group">
+          <label class="cf-label">Modalidad</label>
+          <div class="cf-radios">
+            <div class="cf-radio cf-modalidad active" onclick="elegirModalidad('recoger', this)">🏪 Recoger</div>
+            <div class="cf-radio cf-modalidad" onclick="elegirModalidad('domicilio', this)">🛵 Domicilio</div>
+          </div>
+        </div>
+
+        <div class="cf-group" id="direccionGroup" style="display:none">
+          <label class="cf-label">Dirección de entrega</label>
+          <textarea class="cf-textarea" id="cfDireccion" placeholder="Ej. 200m sur de la escuela, casa portón negro"></textarea>
+        </div>
+
+        <div class="cf-group">
+          <label class="cf-label">Nombre</label>
+          <input class="cf-input" id="cfNombre" placeholder="Tu nombre">
+        </div>
+
+        <div class="cf-group">
+          <label class="cf-label">Teléfono</label>
+          <input class="cf-input" id="cfTelefono" type="tel" placeholder="8888-8888">
+        </div>
+
+        <div class="cf-group">
+          <label class="cf-label">Observaciones (opcional)</label>
+          <textarea class="cf-textarea" id="cfNotas" placeholder="Alguna indicación especial para tu pedido"></textarea>
+        </div>
+      </div>
+      <div class="cart-footer">
+        <div class="cart-total"><span>Total</span><span id="cartTotal2">₡0</span></div>
+        <button class="cart-btn-primary" onclick="enviarPedidoWhatsApp()">Enviar pedido por WhatsApp 💬</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SELECTOR DE SABOR ===================== -->
+  <div class="sabor-modal-overlay" id="saborModalOverlay">
+    <div class="sabor-modal">
+      <h4 id="saborTitulo">Producto</h4>
+      <div class="sabor-precio" id="saborPrecio">₡0</div>
+      <div id="saborSelectsContainer"></div>
+      <div class="sabor-modal-actions">
+        <button class="btn-cancel" onclick="cerrarSelectorSabor()">Cancelar</button>
+        <button class="cart-btn-primary" onclick="confirmarSelectorSabor()">Agregar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cart-toast" id="cartToast"></div>
+
   <script>
     // Año dinámico
     document.getElementById('yr').textContent = new Date().getFullYear();
@@ -1015,6 +1307,203 @@
     }, { threshold: 0.08 });
 
     document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    /* ======================================================
+       CARRITO DE PEDIDOS ONLINE
+    ====================================================== */
+    const WA_NUMEROS = { cariari: '50685756873', guapiles: '50686588311' };
+    const SABORES_PIZZA = ['Birria','Brasileña','Camarones','Canadiense','Chicharrón','Hawaiana','Jamón y Hongos','Jamón y Queso','Mar y Tierra','Mexicana','Napolitana','Pepperoni','Pollo','Salsa Blanca','Solo Carnes','Suprema','Vegetariana'];
+    const SABORES_BATIDO_AGUA = ['Fresa Hierbabuena','Frutas','Guanábana','Limón Hierbabuena','Mango','Manzana Verde','Melón','Naranja Zanahoria','Papaya / Banano','Piña','Piña Hierbabuena','Piña y Apio','Sandía'];
+    const SABORES_MILKSHAKE = ['Caramelo','Chicle','Chocolate','Churchill','Fresa','Menta','Oreo','Piña Colada'];
+
+    let carrito = [];
+    try { carrito = JSON.parse(localStorage.getItem('pizzaYajaCarrito') || '[]'); } catch(e) { carrito = []; }
+
+    function guardarCarrito() {
+      try { localStorage.setItem('pizzaYajaCarrito', JSON.stringify(carrito)); } catch(e) {}
+      renderCarrito();
+    }
+
+    function agregarAlCarrito(nombre, precio, nota) {
+      nota = nota || '';
+      const existente = carrito.find(i => i.nombre === nombre && i.nota === nota);
+      if (existente) {
+        existente.cantidad++;
+      } else {
+        carrito.push({ nombre, precio, nota, cantidad: 1 });
+      }
+      guardarCarrito();
+      mostrarToast('Agregado: ' + nombre);
+    }
+
+    function cambiarCantidad(idx, delta) {
+      carrito[idx].cantidad += delta;
+      if (carrito[idx].cantidad <= 0) carrito.splice(idx, 1);
+      guardarCarrito();
+    }
+
+    function quitarDelCarrito(idx) {
+      carrito.splice(idx, 1);
+      guardarCarrito();
+    }
+
+    function totalCarrito() {
+      return carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+    }
+
+    function renderCarrito() {
+      const badge = document.getElementById('cartBadge');
+      const totalItems = carrito.reduce((s, i) => s + i.cantidad, 0);
+      badge.textContent = totalItems;
+      badge.style.display = totalItems > 0 ? 'flex' : 'none';
+
+      const body = document.getElementById('cartBody');
+      if (carrito.length === 0) {
+        body.innerHTML = '<div class="cart-empty">🛒<br><br>Tu carrito está vacío.<br>¡Agregá algo rico del menú!</div>';
+      } else {
+        body.innerHTML = carrito.map((item, idx) => `
+          <div class="cart-item">
+            <div class="cart-item-info">
+              <div class="cart-item-name">${item.nombre}</div>
+              ${item.nota ? `<div class="cart-item-note">${item.nota}</div>` : ''}
+              <div class="cart-item-price">₡${(item.precio * item.cantidad).toLocaleString('es-CR')}</div>
+            </div>
+            <div>
+              <div class="cart-item-qty">
+                <button class="qty-btn" onclick="cambiarCantidad(${idx},-1)">−</button>
+                <span>${item.cantidad}</span>
+                <button class="qty-btn" onclick="cambiarCantidad(${idx},1)">+</button>
+              </div>
+              <button class="cart-item-remove" onclick="quitarDelCarrito(${idx})">Quitar</button>
+            </div>
+          </div>
+        `).join('');
+      }
+      const totalTxt = '₡' + totalCarrito().toLocaleString('es-CR');
+      document.getElementById('cartTotal').textContent = totalTxt;
+      document.getElementById('cartTotal2').textContent = totalTxt;
+      document.getElementById('cartCheckoutBtn').disabled = carrito.length === 0;
+    }
+
+    function abrirCarrito() {
+      document.getElementById('cartOverlay').classList.add('open');
+      document.getElementById('cartDrawer').classList.add('open');
+      document.getElementById('cartStep1').style.display = 'flex';
+      document.getElementById('cartStep2').style.display = 'none';
+      document.body.style.overflow = 'hidden';
+    }
+    function cerrarCarrito() {
+      document.getElementById('cartOverlay').classList.remove('open');
+      document.getElementById('cartDrawer').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    let sedeSeleccionada = 'cariari';
+    let modalidadSeleccionada = 'recoger';
+
+    function irACheckout() {
+      document.getElementById('cartStep1').style.display = 'none';
+      document.getElementById('cartStep2').style.display = 'flex';
+    }
+    function volverAlCarrito() {
+      document.getElementById('cartStep1').style.display = 'flex';
+      document.getElementById('cartStep2').style.display = 'none';
+    }
+
+    function elegirSede(sede, btn) {
+      sedeSeleccionada = sede;
+      document.querySelectorAll('.cf-sede').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+    function elegirModalidad(mod, btn) {
+      modalidadSeleccionada = mod;
+      document.querySelectorAll('.cf-modalidad').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('direccionGroup').style.display = mod === 'domicilio' ? 'block' : 'none';
+    }
+
+    function enviarPedidoWhatsApp() {
+      const nombre = document.getElementById('cfNombre').value.trim();
+      const telefono = document.getElementById('cfTelefono').value.trim();
+      const direccion = document.getElementById('cfDireccion').value.trim();
+      const notas = document.getElementById('cfNotas').value.trim();
+
+      if (!nombre || !telefono) {
+        alert('Por favor completá tu nombre y teléfono.');
+        return;
+      }
+      if (modalidadSeleccionada === 'domicilio' && !direccion) {
+        alert('Por favor indicá la dirección de entrega.');
+        return;
+      }
+
+      let msg = '🍕 *Nuevo pedido - Pizza Yaja*\n\n';
+      msg += '📍 Sucursal: ' + (sedeSeleccionada === 'cariari' ? 'Cariari' : 'Guápiles') + '\n';
+      msg += '🛵 Modalidad: ' + (modalidadSeleccionada === 'domicilio' ? 'Entrega a domicilio' : 'Recoger en el local') + '\n';
+      if (modalidadSeleccionada === 'domicilio') msg += '📌 Dirección: ' + direccion + '\n';
+      msg += '\n*Pedido:*\n';
+      carrito.forEach(item => {
+        msg += '- ' + item.cantidad + 'x ' + item.nombre + (item.nota ? ' (' + item.nota + ')' : '') + ' - ₡' + (item.precio * item.cantidad).toLocaleString('es-CR') + '\n';
+      });
+      msg += '\n💰 *Total: ₡' + totalCarrito().toLocaleString('es-CR') + '*\n\n';
+      msg += '👤 Cliente: ' + nombre + '\n📱 Teléfono: ' + telefono + '\n';
+      if (notas) msg += '📝 Notas: ' + notas + '\n';
+
+      const numero = WA_NUMEROS[sedeSeleccionada];
+      window.open('https://wa.me/' + numero + '?text=' + encodeURIComponent(msg), '_blank');
+
+      carrito = [];
+      guardarCarrito();
+      cerrarCarrito();
+    }
+
+    // Selector de sabor (modal)
+    let saborPendiente = null;
+    function abrirSelectorSabor(nombreBase, precio, opciones, cantidadSabores) {
+      saborPendiente = { nombreBase, precio };
+      document.getElementById('saborTitulo').textContent = nombreBase;
+      document.getElementById('saborPrecio').textContent = '₡' + precio.toLocaleString('es-CR');
+      const cont = document.getElementById('saborSelectsContainer');
+      cont.innerHTML = '';
+      for (let i = 0; i < cantidadSabores; i++) {
+        const label = cantidadSabores > 1 ? ('Sabor ' + (i + 1)) : 'Sabor';
+        cont.innerHTML += '<div class="cf-group"><label class="cf-label">' + label + '</label>' +
+          '<select class="cf-select sabor-select">' +
+          opciones.map(o => '<option value="' + o + '">' + o + '</option>').join('') +
+          '</select></div>';
+      }
+      document.getElementById('saborModalOverlay').classList.add('open');
+    }
+    function cerrarSelectorSabor() {
+      document.getElementById('saborModalOverlay').classList.remove('open');
+    }
+    function confirmarSelectorSabor() {
+      const selects = document.querySelectorAll('.sabor-select');
+      const sabores = Array.from(selects).map(s => s.value);
+      agregarAlCarrito(saborPendiente.nombreBase, saborPendiente.precio, sabores.join(' + '));
+      cerrarSelectorSabor();
+    }
+
+    let toastTimeout;
+    function mostrarToast(texto) {
+      const toast = document.getElementById('cartToast');
+      toast.textContent = texto;
+      toast.classList.add('show');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // Estado abierto/cerrado (hora de Costa Rica)
+    function actualizarEstadoAbierto() {
+      const horaCR = parseInt(new Intl.DateTimeFormat('en-US', { hour: '2-digit', hour12: false, timeZone: 'America/Costa_Rica' }).format(new Date()), 10);
+      const banner = document.getElementById('promoBanner');
+      const status = document.getElementById('promoStatus');
+      const abierto = horaCR >= 11 && horaCR < 22;
+      banner.classList.toggle('closed', !abierto);
+      status.textContent = abierto ? 'Abierto ahora' : 'Cerrado · Abre a las 11:00am';
+    }
+    actualizarEstadoAbierto();
+    renderCarrito();
   </script>
 </body>
 </html>

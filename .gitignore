@@ -10,3 +10,6 @@ seed_productos.php
 erp_inventario_doc.html
 manual_usuario_inventario.html
 manual_tecnico_inventario.html
+
+# Dumps de base de datos
+pizzeria.sql

@@ -8,15 +8,21 @@ $conn = getConnection();
 $hoy  = date('Y-m-d');
 $ayer = date('Y-m-d', strtotime('-1 day'));
 
+if(isset($_GET['suc']) && in_array($_GET['suc'], ['cariari','guapiles','ambas'])) {
+    $_SESSION['erp_sucursal'] = $_GET['suc'];
+}
+$suc_filtro = $_SESSION['erp_sucursal'] ?? 'ambas';
+$SUC  = $suc_filtro !== 'ambas' ? "AND o.sucursal = '{$suc_filtro}'" : '';
+$SUCB = $suc_filtro !== 'ambas' ? "AND sucursal = '{$suc_filtro}'" : '';
 $DONE = "estado = 'completado'";
 
 // ── KPI: Ventas hoy vs ayer
-$kVentas = $conn->prepare("SELECT COALESCE(SUM(total),0) AS v FROM ordenes WHERE DATE(fecha_creacion)=? AND {$DONE}");
+$kVentas = $conn->prepare("SELECT COALESCE(SUM(total),0) AS v FROM ordenes WHERE DATE(fecha_creacion)=? AND {$DONE} {$SUCB}");
 $kVentas->execute([$hoy]);  $vHoy  = (float)$kVentas->fetch()['v'];
 $kVentas->execute([$ayer]); $vAyer = (float)$kVentas->fetch()['v'];
 
 // ── KPI: Órdenes hoy vs ayer
-$kOrd = $conn->prepare("SELECT COUNT(*) AS c FROM ordenes WHERE DATE(fecha_creacion)=? AND {$DONE}");
+$kOrd = $conn->prepare("SELECT COUNT(*) AS c FROM ordenes WHERE DATE(fecha_creacion)=? AND {$DONE} {$SUCB}");
 $kOrd->execute([$hoy]);  $oHoy  = (int)$kOrd->fetch()['c'];
 $kOrd->execute([$ayer]); $oAyer = (int)$kOrd->fetch()['c'];
 
@@ -24,21 +30,20 @@ $kOrd->execute([$ayer]); $oAyer = (int)$kOrd->fetch()['c'];
 $ticketHoy = $oHoy > 0 ? $vHoy / $oHoy : 0;
 
 // ── KPI: Órdenes activas ahora (pendiente + en_cocina)
-$kAct = $conn->query("SELECT COUNT(*) AS c FROM ordenes WHERE estado IN ('pendiente','en_cocina')")->fetch()['c'];
+$kAct = $conn->query("SELECT COUNT(*) AS c FROM ordenes WHERE estado IN ('pendiente','en_cocina') {$SUCB}")->fetch()['c'];
 
 // ── Ventas últimos 7 días (para mini chart)
 $v7 = $conn->query("
   SELECT DATE(fecha_creacion) AS d, COALESCE(SUM(total),0) AS v
-  FROM ordenes WHERE fecha_creacion >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND {$DONE}
+  FROM ordenes WHERE fecha_creacion >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND {$DONE} {$SUCB}
   GROUP BY DATE(fecha_creacion) ORDER BY d ASC
 ")->fetchAll();
 
 // ── Métodos de pago hoy (desde tabla pagos)
 $mPago = $conn->prepare("
   SELECT p.metodo_pago, COUNT(DISTINCT p.orden_id) AS c
-  FROM pagos p
-  JOIN ordenes o ON p.orden_id = o.id
-  WHERE DATE(o.fecha_creacion)=? AND {$DONE}
+  FROM pagos p JOIN ordenes o ON p.orden_id = o.id
+  WHERE DATE(o.fecha_creacion)=? AND {$DONE} {$SUC}
   GROUP BY p.metodo_pago
 ");
 $mPago->execute([$hoy]);
@@ -49,7 +54,7 @@ $top5 = $conn->prepare("
   SELECT d.producto_nombre AS nombre, SUM(d.cantidad) AS qty,
          SUM(d.precio_unitario * d.cantidad) AS total
   FROM detalle_orden d JOIN ordenes o ON d.orden_id = o.id
-  WHERE DATE(o.fecha_creacion)=? AND {$DONE}
+  WHERE DATE(o.fecha_creacion)=? AND {$DONE} {$SUC}
   GROUP BY d.producto_nombre ORDER BY qty DESC LIMIT 5
 ");
 $top5->execute([$hoy]);
@@ -58,7 +63,7 @@ $topProd = $top5->fetchAll();
 // ── Últimas 6 órdenes completadas hoy
 $ultimas = $conn->prepare("
   SELECT numero_orden, nombre_cliente, total, fecha_creacion
-  FROM ordenes WHERE DATE(fecha_creacion)=? AND {$DONE}
+  FROM ordenes WHERE DATE(fecha_creacion)=? AND {$DONE} {$SUCB}
   ORDER BY fecha_creacion DESC LIMIT 6
 ");
 $ultimas->execute([$hoy]);

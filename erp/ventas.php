@@ -6,6 +6,13 @@ if(!isset($_SESSION['usuario_id']) || $_SESSION['rol'] != 'admin') {
 require_once '../config.php';
 $conn = getConnection();
 
+if(isset($_GET['suc']) && in_array($_GET['suc'], ['cariari','guapiles','ambas'])) {
+    $_SESSION['erp_sucursal'] = $_GET['suc'];
+}
+$suc_filtro = $_SESSION['erp_sucursal'] ?? 'ambas';
+$SUC  = $suc_filtro !== 'ambas' ? "AND o.sucursal = '{$suc_filtro}'" : '';
+$SUCB = $suc_filtro !== 'ambas' ? "AND sucursal = '{$suc_filtro}'" : '';
+
 $dias  = isset($_GET['dias']) && in_array($_GET['dias'], ['7','30','90']) ? (int)$_GET['dias'] : 30;
 $desde = date('Y-m-d', strtotime("-{$dias} day"));
 $DONE  = "estado = 'completado'";
@@ -13,7 +20,7 @@ $DONE  = "estado = 'completado'";
 // Ventas por día
 $vDia = $conn->prepare("
   SELECT DATE(fecha_creacion) AS d, COUNT(*) AS ordenes, SUM(total) AS total
-  FROM ordenes WHERE fecha_creacion >= ? AND {$DONE}
+  FROM ordenes WHERE fecha_creacion >= ? AND {$DONE} {$SUCB}
   GROUP BY DATE(fecha_creacion) ORDER BY d ASC
 ");
 $vDia->execute([$desde]);
@@ -23,7 +30,7 @@ $ventasDia = $vDia->fetchAll();
 $mPago = $conn->prepare("
   SELECT p.metodo_pago, COUNT(DISTINCT p.orden_id) AS ordenes, SUM(p.monto_aplicado) AS total
   FROM pagos p JOIN ordenes o ON p.orden_id=o.id
-  WHERE o.fecha_creacion >= ? AND {$DONE}
+  WHERE o.fecha_creacion >= ? AND {$DONE} {$SUC}
   GROUP BY p.metodo_pago ORDER BY total DESC
 ");
 $mPago->execute([$desde]);
@@ -34,21 +41,21 @@ $topQ = $conn->prepare("
   SELECT d.producto_nombre AS nombre, SUM(d.cantidad) AS qty,
          SUM(d.precio_unitario * d.cantidad) AS total
   FROM detalle_orden d JOIN ordenes o ON d.orden_id=o.id
-  WHERE o.fecha_creacion >= ? AND {$DONE}
+  WHERE o.fecha_creacion >= ? AND {$DONE} {$SUC}
   GROUP BY d.producto_nombre ORDER BY qty DESC LIMIT 10
 ");
 $topQ->execute([$desde]);
 $topProd = $topQ->fetchAll();
 
 // Totales
-$totQ = $conn->prepare("SELECT COUNT(*) AS o, COALESCE(SUM(total),0) AS v FROM ordenes WHERE fecha_creacion >= ? AND {$DONE}");
+$totQ = $conn->prepare("SELECT COUNT(*) AS o, COALESCE(SUM(total),0) AS v FROM ordenes WHERE fecha_creacion >= ? AND {$DONE} {$SUCB}");
 $totQ->execute([$desde]);
 $totales = $totQ->fetch();
 
 // Horas pico
 $horasQ = $conn->prepare("
   SELECT HOUR(fecha_creacion) AS h, COUNT(*) AS c
-  FROM ordenes WHERE fecha_creacion >= ? AND {$DONE}
+  FROM ordenes WHERE fecha_creacion >= ? AND {$DONE} {$SUCB}
   GROUP BY HOUR(fecha_creacion) ORDER BY h ASC
 ");
 $horasQ->execute([$desde]);

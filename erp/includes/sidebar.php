@@ -199,10 +199,35 @@ a { text-decoration: none; color: inherit; }
 }
 </style>
 
+<?php
+$suc_act    = $_SESSION['erp_sucursal'] ?? 'ambas';
+$suc_labels = ['cariari'=>'Cariari','guapiles'=>'Guapiles','ambas'=>'Ambas'];
+function sucUrl($s) {
+    $p = $_GET; $p['suc'] = $s;
+    return '?' . http_build_query($p);
+}
+?>
 <aside class="erp-sb" id="erp-sb">
   <div class="erp-brand">
     <img src="../web/img/Logo.jpeg" alt="Pizza Yaja" class="erp-brand-logo">
     <div class="erp-brand-tag">Sistema ERP</div>
+  </div>
+
+  <!-- Selector de sucursal -->
+  <div style="padding:12px 14px;border-bottom:1px solid #1d1d1d;background:#0d0d0d;">
+    <div style="font-size:10px;color:#555;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">📍 Sucursal activa</div>
+    <div style="display:flex;gap:6px;">
+      <?php foreach($suc_labels as $k=>$lbl): ?>
+        <a href="<?= sucUrl($k) ?>" style="
+          flex:1;text-align:center;padding:8px 4px;border-radius:8px;font-size:12px;font-weight:700;
+          background:<?= $suc_act===$k ? '#ff9800' : 'transparent' ?>;
+          color:<?= $suc_act===$k ? '#fff' : '#666' ?>;
+          border:2px solid <?= $suc_act===$k ? '#ff9800' : '#2a2a2a' ?>;
+          transition:all .15s;">
+          <?= $lbl ?>
+        </a>
+      <?php endforeach; ?>
+    </div>
   </div>
 
   <nav class="erp-nav">

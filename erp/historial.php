@@ -23,6 +23,11 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
+if(isset($_GET['suc']) && in_array($_GET['suc'], ['cariari','guapiles','ambas'])) {
+    $_SESSION['erp_sucursal'] = $_GET['suc'];
+}
+$suc_filtro = $_SESSION['erp_sucursal'] ?? 'ambas';
+
 $busq  = trim($_GET['q'] ?? '');
 $fecha = $_GET['fecha'] ?? '';
 $page  = max(1, (int)($_GET['p'] ?? 1));
@@ -38,6 +43,10 @@ if($busq) {
 if($fecha) {
     $where[] = "DATE(o.fecha_creacion) = ?";
     $params[] = $fecha;
+}
+if($suc_filtro !== 'ambas') {
+    $where[] = "o.sucursal = ?";
+    $params[] = $suc_filtro;
 }
 $whereSQL = 'WHERE ' . implode(' AND ', $where);
 

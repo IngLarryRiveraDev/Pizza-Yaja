@@ -25,6 +25,19 @@ if(!$es_admin) {
     }
 }
 
+// Sucursal: camarero ve la suya, admin puede filtrar
+$suc_sesion = $_SESSION['sucursal'] ?? 'cariari';
+if($es_admin) {
+    if(isset($_GET['suc']) && in_array($_GET['suc'], ['cariari','guapiles','ambas'])) {
+        $_SESSION['erp_sucursal'] = $_GET['suc'];
+    }
+    $suc_filtro = $_SESSION['erp_sucursal'] ?? 'ambas';
+} else {
+    $suc_filtro = $suc_sesion;
+}
+$suc_labels = ['cariari'=>'Cariari','guapiles'=>'Guapiles','ambas'=>'Ambas'];
+$SUC = $suc_filtro !== 'ambas' ? "AND o.sucursal = '{$suc_filtro}'" : '';
+
 require_once 'config.php';
 
 try {
@@ -37,7 +50,7 @@ try {
         SELECT p.metodo_pago, COALESCE(SUM(p.monto_aplicado), 0) as total
         FROM pagos p
         JOIN ordenes o ON p.orden_id = o.id
-        WHERE o.estado = 'completado' AND DATE(o.fecha_creacion) = ?
+        WHERE o.estado = 'completado' AND DATE(o.fecha_creacion) = ? {$SUC}
         GROUP BY p.metodo_pago
     ");
     $stmt->execute([$fecha]);
@@ -52,7 +65,7 @@ try {
         SELECT o.numero_orden, o.nombre_cliente, o.total, o.fecha_creacion,
                (SELECT GROUP_CONCAT(producto_nombre SEPARATOR ', ') FROM detalle_orden WHERE orden_id = o.id) as productos
         FROM ordenes o
-        WHERE o.estado = 'completado' AND DATE(o.fecha_creacion) = ?
+        WHERE o.estado = 'completado' AND DATE(o.fecha_creacion) = ? {$SUC}
         ORDER BY o.fecha_creacion ASC
     ");
     $stmt->execute([$fecha]);
@@ -156,10 +169,22 @@ try {
 <body>
 
 <div class="header">
-    <h1>💰 Arqueo de Caja</h1>
+    <div>
+        <h1>💰 Arqueo de Caja</h1>
+        <div style="font-size:12px;color:#888;margin-top:2px;">
+            📍 <?php echo $suc_labels[$suc_filtro] ?? $suc_filtro; ?>
+            <?php if($es_admin): ?>
+                <?php foreach(['cariari','guapiles','ambas'] as $s): ?>
+                    <?php if($s !== $suc_filtro): ?>
+                        <a href="?fecha=<?= $fecha ?>&suc=<?= $s ?>" style="color:#ff9800;margin-left:8px;"><?= $suc_labels[$s] ?></a>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+    </div>
     <div style="display:flex;gap:8px;align-items:center">
-        <a href="exportar_arqueo.php?fecha=<?php echo htmlspecialchars($fecha); ?>" class="back-btn" style="background:#4caf50">⬇ Exportar Excel</a>
-        <a href="menu.php" class="back-btn">← Volver</a>
+        <a href="exportar_arqueo.php?fecha=<?php echo htmlspecialchars($fecha); ?>&suc=<?= $suc_filtro ?>" class="back-btn" style="background:#4caf50">⬇ Exportar Excel</a>
+        <a href="<?php echo $es_admin ? 'erp/index.php' : 'menu.php'; ?>" class="back-btn">← Volver</a>
     </div>
 </div>
 

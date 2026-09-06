@@ -1,10 +1,17 @@
 <?php
 session_start();
 
-if(!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'admin') {
-    header('Location: index.php');
-    exit;
+if(!isset($_SESSION['usuario_id'])) {
+    header('Location: index.php'); exit;
 }
+
+// Sucursal: camarero ve la suya, admin usa el filtro pasado
+$es_admin = $_SESSION['rol'] === 'admin';
+$suc_filtro = $es_admin
+    ? (in_array($_GET['suc'] ?? '', ['cariari','guapiles','ambas']) ? $_GET['suc'] : 'ambas')
+    : ($_SESSION['sucursal'] ?? 'cariari');
+$SUC = $suc_filtro !== 'ambas' ? "AND o.sucursal = '{$suc_filtro}'" : '';
+$suc_labels = ['cariari'=>'Cariari','guapiles'=>'Guapiles','ambas'=>'Ambas'];
 
 require_once 'config.php';
 
@@ -18,7 +25,7 @@ try {
         SELECT p.metodo_pago, COALESCE(SUM(p.monto_aplicado), 0) as total
         FROM pagos p
         JOIN ordenes o ON p.orden_id = o.id
-        WHERE o.estado = 'completado' AND DATE(o.fecha_creacion) = ?
+        WHERE o.estado = 'completado' AND DATE(o.fecha_creacion) = ? {$SUC}
         GROUP BY p.metodo_pago
     ");
     $stmt->execute([$fecha]);
@@ -33,7 +40,7 @@ try {
                (SELECT GROUP_CONCAT(CONCAT(cantidad,'x ',producto_nombre) SEPARATOR ' | ')
                 FROM detalle_orden WHERE orden_id = o.id) as productos
         FROM ordenes o
-        WHERE o.estado = 'completado' AND DATE(o.fecha_creacion) = ?
+        WHERE o.estado = 'completado' AND DATE(o.fecha_creacion) = ? {$SUC}
         ORDER BY o.fecha_creacion ASC
     ");
     $stmt->execute([$fecha]);
@@ -57,6 +64,7 @@ $out = fopen('php://output', 'w');
 
 // Encabezado del reporte
 fputcsv($out, ['ARQUEO DE CAJA - PIZZA YAJA'], ';');
+fputcsv($out, ['Sucursal:', $suc_labels[$suc_filtro] ?? $suc_filtro], ';');
 fputcsv($out, ['Fecha:', $fecha_formato], ';');
 fputcsv($out, [], ';');
 

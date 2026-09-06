@@ -6,290 +6,233 @@ if(!isset($_SESSION['usuario_id'])) {
     header('Location: index.php'); exit;
 }
 
-$es_admin = isset($_SESSION['rol']) && $_SESSION['rol'] === 'admin';
-
-if(!$es_admin) {
-    require_once 'config.php';
-    $pass = $_POST['arqueo_pass'] ?? '';
-    $autorizado = false;
-    if(!empty($pass)) {
-        try {
-            $c = getConnection();
-            $s = $c->query("SELECT contrasena FROM usuarios WHERE rol = 'admin' LIMIT 1");
-            $a = $s->fetch(PDO::FETCH_ASSOC);
-            if($a && password_verify($pass, $a['contrasena'])) $autorizado = true;
-        } catch(PDOException $e) {}
-    }
-    if(!$autorizado) {
-        header('Location: ordenes_activas.php'); exit;
-    }
-}
-
-// Sucursal: camarero ve la suya, admin puede filtrar
-$suc_sesion = $_SESSION['sucursal'] ?? 'cariari';
-if($es_admin) {
-    if(isset($_GET['suc']) && in_array($_GET['suc'], ['cariari','guapiles','ambas'])) {
-        $_SESSION['erp_sucursal'] = $_GET['suc'];
-    }
-    $suc_filtro = $_SESSION['erp_sucursal'] ?? 'ambas';
-} else {
-    $suc_filtro = $suc_sesion;
-}
-$suc_labels = ['cariari'=>'Cariari','guapiles'=>'Guapiles','ambas'=>'Ambas'];
-$SUC = $suc_filtro !== 'ambas' ? "AND o.sucursal = '{$suc_filtro}'" : '';
-
 require_once 'config.php';
 
+$usuario_id = $_SESSION['usuario_id'];
+$sucursal   = $_SESSION['sucursal'] ?? 'cariari';
+$fecha_hoy  = date('Y-m-d');
+$error      = '';
+$enviado    = false;
+
+// Auto-crear tabla si no existe
 try {
     $conn = getConnection();
-
-    $fecha = $_GET['fecha'] ?? date('Y-m-d');
-
-    // Totales por método de pago
-    $stmt = $conn->prepare("
-        SELECT p.metodo_pago, COALESCE(SUM(p.monto_aplicado), 0) as total
-        FROM pagos p
-        JOIN ordenes o ON p.orden_id = o.id
-        WHERE o.estado = 'completado' AND DATE(o.fecha_creacion) = ? {$SUC}
-        GROUP BY p.metodo_pago
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS arqueos (
+            id               INT AUTO_INCREMENT PRIMARY KEY,
+            usuario_id       INT NOT NULL,
+            sucursal         VARCHAR(20) NOT NULL DEFAULT 'cariari',
+            fecha_cierre     DATE NOT NULL,
+            fisico_efectivo  DECIMAL(10,2) NOT NULL DEFAULT 0,
+            fisico_sinpe     DECIMAL(10,2) NOT NULL DEFAULT 0,
+            fisico_tarjeta   DECIMAL(10,2) NOT NULL DEFAULT 0,
+            sistema_efectivo DECIMAL(10,2) NOT NULL DEFAULT 0,
+            sistema_sinpe    DECIMAL(10,2) NOT NULL DEFAULT 0,
+            sistema_tarjeta  DECIMAL(10,2) NOT NULL DEFAULT 0,
+            notas            TEXT,
+            created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uk_usuario_fecha (usuario_id, fecha_cierre)
+        )
     ");
-    $stmt->execute([$fecha]);
-    $pagos_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $pagos = ['efectivo' => 0, 'sinpe' => 0, 'tarjeta' => 0];
-    foreach($pagos_raw as $p) $pagos[$p['metodo_pago']] = (float)$p['total'];
+} catch(PDOException $e) {}
 
-    $total_dia = array_sum($pagos);
+// Verificar si ya envió arqueo hoy
+try {
+    $chk = $conn->prepare("SELECT id FROM arqueos WHERE usuario_id = ? AND fecha_cierre = ?");
+    $chk->execute([$usuario_id, $fecha_hoy]);
+    if($chk->fetch()) {
+        $error = 'ya_enviado';
+    }
+} catch(PDOException $e) {}
 
-    // Órdenes del día
-    $stmt = $conn->prepare("
-        SELECT o.numero_orden, o.nombre_cliente, o.total, o.fecha_creacion,
-               (SELECT GROUP_CONCAT(producto_nombre SEPARATOR ', ') FROM detalle_orden WHERE orden_id = o.id) as productos
-        FROM ordenes o
-        WHERE o.estado = 'completado' AND DATE(o.fecha_creacion) = ? {$SUC}
-        ORDER BY o.fecha_creacion ASC
-    ");
-    $stmt->execute([$fecha]);
-    $ordenes_dia = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Procesar envío
+if($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
+    $fisico_efectivo = (float)str_replace(',', '.', $_POST['efectivo'] ?? 0);
+    $fisico_sinpe    = (float)str_replace(',', '.', $_POST['sinpe']    ?? 0);
+    $fisico_tarjeta  = (float)str_replace(',', '.', $_POST['tarjeta']  ?? 0);
+    $notas           = trim($_POST['notas'] ?? '');
 
-} catch(PDOException $e) {
-    die("Error: " . $e->getMessage());
+    try {
+        // Capturar totales del sistema server-side
+        $stmt = $conn->prepare("
+            SELECT p.metodo_pago, COALESCE(SUM(p.monto_aplicado), 0) AS total
+            FROM pagos p
+            JOIN ordenes o ON p.orden_id = o.id
+            WHERE o.estado = 'completado'
+              AND DATE(o.fecha_creacion) = ?
+              AND o.sucursal = ?
+            GROUP BY p.metodo_pago
+        ");
+        $stmt->execute([$fecha_hoy, $sucursal]);
+        $sys = ['efectivo'=>0,'sinpe'=>0,'tarjeta'=>0];
+        foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) $sys[$r['metodo_pago']] = (float)$r['total'];
+
+        $ins = $conn->prepare("
+            INSERT INTO arqueos
+                (usuario_id, sucursal, fecha_cierre,
+                 fisico_efectivo, fisico_sinpe, fisico_tarjeta,
+                 sistema_efectivo, sistema_sinpe, sistema_tarjeta, notas)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        ");
+        $ins->execute([
+            $usuario_id, $sucursal, $fecha_hoy,
+            $fisico_efectivo, $fisico_sinpe, $fisico_tarjeta,
+            $sys['efectivo'], $sys['sinpe'], $sys['tarjeta'],
+            $notas
+        ]);
+        $enviado = true;
+    } catch(PDOException $e) {
+        if($e->getCode() == 23000) {
+            $error = 'ya_enviado';
+        } else {
+            $error = 'Error al guardar: ' . $e->getMessage();
+        }
+    }
 }
+
+$suc_nombre = ['cariari'=>'Cariari','guapiles'=>'Guapiles'][$sucursal] ?? ucfirst($sucursal);
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arqueo de Caja - Pizza Yaja</title>
+    <title>Cierre de Caja - Pizza Yaja</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background: #1a1a1a; padding: 12px; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: Arial, sans-serif; background:#1a1a1a; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px; }
 
-        .header {
-            background: white; padding: 12px 15px; border-radius: 10px;
-            margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;
-        }
-        .header h1 { color: #ff9800; font-size: 18px; }
-        .back-btn {
-            background: #666; color: white; padding: 8px 14px;
-            border-radius: 5px; text-decoration: none; font-size: 13px; font-weight: bold;
-        }
-
-        .filtro-fecha {
-            background: white; border-radius: 8px; padding: 10px 12px;
-            margin-bottom: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-        }
-        .filtro-fecha label { font-size: 13px; font-weight: bold; }
-        .filtro-fecha input {
-            padding: 7px 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px;
-        }
-        .btn-filtrar {
-            padding: 7px 14px; background: #ff9800; color: white;
-            border: none; border-radius: 5px; font-size: 13px; font-weight: bold; cursor: pointer;
-        }
-
-        /* TOTALES */
         .card {
-            background: white; border-radius: 10px; padding: 14px; margin-bottom: 10px;
+            background:white; border-radius:16px; padding:28px 24px;
+            width:100%; max-width:400px; box-shadow:0 8px 32px rgba(0,0,0,.4);
         }
-        .card-titulo {
-            font-size: 14px; font-weight: bold; color: #666; margin-bottom: 10px;
-            text-transform: uppercase; letter-spacing: 0.5px;
+        .logo { text-align:center; margin-bottom:20px; }
+        .logo h1 { color:#ff9800; font-size:22px; }
+        .logo .sub { color:#888; font-size:13px; margin-top:4px; }
+        .sucursal-badge {
+            display:inline-block; background:#fff3e0; color:#ff9800;
+            border:1px solid #ffcc80; border-radius:20px;
+            padding:3px 12px; font-size:12px; font-weight:bold; margin-top:6px;
         }
 
-        .total-grande {
-            font-size: 36px; font-weight: bold; color: #ff9800; text-align: center; padding: 10px 0;
+        .field { margin-bottom:16px; }
+        .field label { display:block; font-size:13px; font-weight:bold; color:#555; margin-bottom:6px; }
+        .field input, .field textarea {
+            width:100%; padding:14px; border:2px solid #e0e0e0; border-radius:10px;
+            font-size:20px; text-align:center; font-family:Arial;
+            transition:border-color .2s;
         }
-        .total-label { font-size: 13px; color: #666; text-align: center; margin-bottom: 4px; }
+        .field input:focus, .field textarea:focus { border-color:#ff9800; outline:none; }
+        .field textarea { font-size:14px; text-align:left; resize:none; }
 
-        .pago-row {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 8px 0; border-bottom: 1px solid #f0f0f0;
+        .prefix { position:relative; }
+        .prefix span {
+            position:absolute; left:14px; top:50%; transform:translateY(-50%);
+            font-size:18px; color:#999; font-weight:bold; pointer-events:none;
         }
-        .pago-row:last-child { border-bottom: none; }
-        .pago-nombre { font-size: 14px; font-weight: bold; }
-        .pago-monto { font-size: 16px; font-weight: bold; color: #333; }
+        .prefix input { padding-left:32px; }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+        input[type=number] { -moz-appearance:textfield; }
 
-        /* ARQUEO */
-        .arqueo-card {
-            background: white; border-radius: 10px; padding: 14px; margin-bottom: 10px;
+        .btn-enviar {
+            width:100%; padding:16px; background:#ff9800; color:white;
+            border:none; border-radius:10px; font-size:17px; font-weight:bold;
+            cursor:pointer; margin-top:8px; transition:background .2s;
         }
-        .input-efectivo {
-            width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px;
-            font-size: 22px; text-align: center; margin: 10px 0;
-        }
-        .input-efectivo:focus { border-color: #ff9800; outline: none; }
+        .btn-enviar:hover { background:#e68900; }
 
-        .diferencia-box {
-            padding: 14px; border-radius: 8px; text-align: center; margin-top: 10px;
-        }
-        .diferencia-box.sobrante { background: #e8f5e9; border: 2px solid #4caf50; }
-        .diferencia-box.faltante { background: #ffebee; border: 2px solid #f44336; }
-        .diferencia-box.exacto   { background: #e3f2fd; border: 2px solid #2196f3; }
-        .diferencia-valor { font-size: 26px; font-weight: bold; }
-        .sobrante .diferencia-valor { color: #4caf50; }
-        .faltante .diferencia-valor { color: #f44336; }
-        .exacto   .diferencia-valor { color: #2196f3; }
-        .diferencia-label { font-size: 13px; color: #555; margin-top: 4px; }
+        .divider { border:none; border-top:1px solid #f0f0f0; margin:16px 0; }
 
-        /* LISTA ÓRDENES */
-        .orden-row {
-            display: flex; justify-content: space-between; align-items: flex-start;
-            padding: 8px 0; border-bottom: 1px solid #f0f0f0; gap: 8px;
+        /* Estados */
+        .estado-ok { text-align:center; }
+        .estado-ok .icon { font-size:64px; margin-bottom:12px; }
+        .estado-ok h2 { color:#4caf50; font-size:20px; margin-bottom:8px; }
+        .estado-ok p { color:#666; font-size:14px; margin-bottom:20px; }
+        .btn-salir {
+            display:block; width:100%; padding:14px; background:#c62828; color:white;
+            border:none; border-radius:10px; font-size:16px; font-weight:bold;
+            cursor:pointer; text-decoration:none; text-align:center;
         }
-        .orden-row:last-child { border-bottom: none; }
-        .ord-num { font-weight: bold; color: #ff9800; font-size: 13px; white-space: nowrap; }
-        .ord-productos { font-size: 11px; color: #666; margin-top: 2px; }
-        .ord-hora { font-size: 11px; color: #999; white-space: nowrap; }
-        .ord-total { font-weight: bold; font-size: 14px; white-space: nowrap; }
 
-        .sin-ordenes { text-align: center; color: #999; padding: 20px; font-size: 14px; }
+        .alerta {
+            background:#fff3e0; border:2px solid #ff9800; border-radius:10px;
+            padding:16px; text-align:center; margin-bottom:16px;
+        }
+        .alerta .icon { font-size:36px; margin-bottom:8px; }
+        .alerta p { color:#555; font-size:14px; }
+        .btn-volver {
+            display:block; width:100%; padding:12px; background:#666; color:white;
+            border:none; border-radius:10px; font-size:15px; font-weight:bold;
+            cursor:pointer; text-decoration:none; text-align:center; margin-top:12px;
+        }
     </style>
 </head>
 <body>
+<div class="card">
+    <div class="logo">
+        <h1>💰 Cierre de Caja</h1>
+        <div class="sub"><?php echo date('d/m/Y'); ?></div>
+        <span class="sucursal-badge">📍 <?php echo $suc_nombre; ?></span>
+    </div>
 
-<div class="header">
-    <div>
-        <h1>💰 Arqueo de Caja</h1>
-        <div style="font-size:12px;color:#888;margin-top:2px;">
-            📍 <?php echo $suc_labels[$suc_filtro] ?? $suc_filtro; ?>
-            <?php if($es_admin): ?>
-                <?php foreach(['cariari','guapiles','ambas'] as $s): ?>
-                    <?php if($s !== $suc_filtro): ?>
-                        <a href="?fecha=<?= $fecha ?>&suc=<?= $s ?>" style="color:#ff9800;margin-left:8px;"><?= $suc_labels[$s] ?></a>
-                    <?php endif; ?>
-                <?php endforeach; ?>
-            <?php endif; ?>
+    <?php if($enviado): ?>
+        <div class="estado-ok">
+            <div class="icon">✅</div>
+            <h2>Cierre enviado</h2>
+            <p>Los datos fueron enviados a la administración correctamente.</p>
+            <a href="logout.php" class="btn-salir">Cerrar sesión</a>
         </div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center">
-        <a href="exportar_arqueo.php?fecha=<?php echo htmlspecialchars($fecha); ?>&suc=<?= $suc_filtro ?>" class="back-btn" style="background:#4caf50">⬇ Exportar Excel</a>
-        <a href="<?php echo $es_admin ? 'erp/index.php' : 'menu.php'; ?>" class="back-btn">← Volver</a>
-    </div>
-</div>
 
-<!-- Filtro de fecha -->
-<form method="GET" action="">
-    <div class="filtro-fecha">
-        <label>Fecha:</label>
-        <input type="date" name="fecha" value="<?php echo htmlspecialchars($fecha); ?>">
-        <button type="submit" class="btn-filtrar">Ver</button>
-    </div>
-</form>
+    <?php elseif($error === 'ya_enviado'): ?>
+        <div class="alerta">
+            <div class="icon">⚠️</div>
+            <p><strong>Ya enviaste el cierre de hoy.</strong><br>Si hay un error, contactá a la administración.</p>
+        </div>
+        <a href="ordenes_activas.php" class="btn-volver">← Volver</a>
 
-<!-- Total del día -->
-<div class="card">
-    <div class="total-label">Total vendido — <?php echo date('d/m/Y', strtotime($fecha)); ?></div>
-    <div class="total-grande">₡<?php echo number_format($total_dia, 0); ?></div>
-    <div style="text-align:center; color:#999; font-size:13px;"><?php echo count($ordenes_dia); ?> orden(es) completada(s)</div>
-</div>
-
-<!-- Desglose por método de pago -->
-<div class="card">
-    <div class="card-titulo">Desglose por método</div>
-    <div class="pago-row">
-        <div class="pago-nombre">💵 Efectivo</div>
-        <div class="pago-monto">₡<?php echo number_format($pagos['efectivo'], 0); ?></div>
-    </div>
-    <div class="pago-row">
-        <div class="pago-nombre">📌 SINPE</div>
-        <div class="pago-monto">₡<?php echo number_format($pagos['sinpe'], 0); ?></div>
-    </div>
-    <div class="pago-row">
-        <div class="pago-nombre">💳 Tarjeta</div>
-        <div class="pago-monto">₡<?php echo number_format($pagos['tarjeta'], 0); ?></div>
-    </div>
-</div>
-
-<!-- Conteo físico de efectivo -->
-<div class="arqueo-card">
-    <div class="card-titulo">Contar efectivo en caja</div>
-    <div style="font-size:13px; color:#666; margin-bottom:4px;">
-        Sistema registra: <strong>₡<?php echo number_format($pagos['efectivo'], 0); ?></strong> en efectivo
-    </div>
-    <input type="number" class="input-efectivo" id="efectivo_fisico"
-           placeholder="0" inputmode="numeric"
-           oninput="calcularDiferencia()">
-
-    <div id="diferencia_box" style="display:none;" class="diferencia-box">
-        <div class="diferencia-valor" id="diferencia_valor"></div>
-        <div class="diferencia-label" id="diferencia_label"></div>
-    </div>
-</div>
-
-<!-- Lista de órdenes del día -->
-<div class="card">
-    <div class="card-titulo">Órdenes del día</div>
-    <?php if(empty($ordenes_dia)): ?>
-        <div class="sin-ordenes">No hay órdenes completadas para esta fecha</div>
     <?php else: ?>
-        <?php foreach($ordenes_dia as $o): ?>
-            <div class="orden-row">
-                <div style="flex:1; min-width:0;">
-                    <div class="ord-num">
-                        #<?php echo $o['numero_orden']; ?>
-                        <?php if($o['nombre_cliente'] && !in_array($o['nombre_cliente'], ['Sin asignar', 'Orden Automática'])): ?>
-                            — <?php echo htmlspecialchars($o['nombre_cliente']); ?>
-                        <?php endif; ?>
-                    </div>
-                    <div class="ord-productos"><?php echo htmlspecialchars($o['productos'] ?? ''); ?></div>
-                </div>
-                <div style="text-align:right;">
-                    <div class="ord-total">₡<?php echo number_format($o['total'], 0); ?></div>
-                    <div class="ord-hora"><?php echo date('H:i', strtotime($o['fecha_creacion'])); ?></div>
+        <p style="color:#888;font-size:13px;text-align:center;margin-bottom:20px;">
+            Ingresá los montos físicos contados al cierre.
+        </p>
+
+        <form method="POST">
+            <div class="field">
+                <label>💵 Efectivo en caja</label>
+                <div class="prefix">
+                    <span>₡</span>
+                    <input type="number" name="efectivo" min="0" step="1" placeholder="0" inputmode="numeric" required>
                 </div>
             </div>
-        <?php endforeach; ?>
+
+            <div class="field">
+                <label>📌 SINPE recibido</label>
+                <div class="prefix">
+                    <span>₡</span>
+                    <input type="number" name="sinpe" min="0" step="1" placeholder="0" inputmode="numeric" required>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>💳 Tarjeta (datáfono)</label>
+                <div class="prefix">
+                    <span>₡</span>
+                    <input type="number" name="tarjeta" min="0" step="1" placeholder="0" inputmode="numeric" required>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <div class="field">
+                <label>📝 Notas (opcional)</label>
+                <textarea name="notas" rows="2" placeholder="Alguna observación del cierre..."></textarea>
+            </div>
+
+            <button type="submit" class="btn-enviar">Enviar cierre →</button>
+        </form>
+
+        <a href="ordenes_activas.php" class="btn-volver" style="margin-top:10px;">← Cancelar</a>
     <?php endif; ?>
 </div>
-
-<script>
-const efectivoSistema = <?php echo $pagos['efectivo']; ?>;
-
-function calcularDiferencia() {
-    const fisico = parseFloat(document.getElementById('efectivo_fisico').value) || 0;
-    const diff = fisico - efectivoSistema;
-    const box = document.getElementById('diferencia_box');
-    const valor = document.getElementById('diferencia_valor');
-    const label = document.getElementById('diferencia_label');
-
-    box.style.display = 'block';
-    box.className = 'diferencia-box';
-
-    if(diff > 0) {
-        box.classList.add('sobrante');
-        valor.textContent = '+₡' + diff.toLocaleString('es-CR');
-        label.textContent = 'Sobrante en caja';
-    } else if(diff < 0) {
-        box.classList.add('faltante');
-        valor.textContent = '−₡' + Math.abs(diff).toLocaleString('es-CR');
-        label.textContent = 'Faltante en caja';
-    } else {
-        box.classList.add('exacto');
-        valor.textContent = '✓ Exacto';
-        label.textContent = 'El efectivo cuadra perfectamente';
-    }
-}
-</script>
 </body>
 </html>

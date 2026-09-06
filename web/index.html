@@ -384,6 +384,7 @@
     .gallery-item.tall  { grid-row: span 2; aspect-ratio: auto; }
 
     .gallery-item img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+    .img-contain { object-fit: contain !important; background: #000; }
     .gallery-label {
       position: absolute; bottom: 0; left: 0; right: 0;
       background: linear-gradient(transparent, rgba(0,0,0,.75));
@@ -444,6 +445,9 @@
       transition: var(--t);
     }
     .btn-map:hover { border-color: #4285f4; color: #6ba3f5; }
+
+    .suc-map { aspect-ratio: 16/9; border-top: 1px solid var(--border); background: var(--surface2); }
+    .suc-map iframe { width: 100%; height: 100%; border: 0; display: block; filter: grayscale(.3) contrast(1.05); }
 
     /* ============================================
        CARRITO / PEDIDOS ONLINE
@@ -1028,19 +1032,19 @@
       <div class="menu-grid">
         <div class="menu-card reveal">
           <div class="card-img">
-            <img src="img/cafe.jpeg" alt="Café Negro" loading="lazy">
+            <img src="img/cafe.jpeg" alt="Café Negro" loading="lazy" class="img-contain">
           </div>
           <div class="card-body"><div class="card-name">Café Negro</div><div class="card-footer"><div class="card-price">₡700</div><button class="add-btn" onclick='agregarAlCarrito("Café Negro", 700)'>+</button></div></div>
         </div>
         <div class="menu-card reveal">
           <div class="card-img">
-            <img src="img/cafe.jpeg" alt="Café con Leche" loading="lazy">
+            <img src="img/cafe.jpeg" alt="Café con Leche" loading="lazy" class="img-contain">
           </div>
           <div class="card-body"><div class="card-name">Café con Leche</div><div class="card-footer"><div class="card-price">₡1,000</div><button class="add-btn" onclick='agregarAlCarrito("Café con Leche", 1000)'>+</button></div></div>
         </div>
         <div class="menu-card reveal">
           <div class="card-img">
-            <img src="img/cafe.jpeg" alt="Chocolate" loading="lazy">
+            <img src="img/cafe.jpeg" alt="Chocolate" loading="lazy" class="img-contain">
           </div>
           <div class="card-body"><div class="card-name">Chocolate</div><div class="card-footer"><div class="card-price">₡1,000</div><button class="add-btn" onclick='agregarAlCarrito("Chocolate", 1000)'>+</button></div></div>
         </div>
@@ -1081,12 +1085,12 @@
 
     <div class="gallery-grid">
       <div class="gallery-item wide reveal">
-        <img src="img/pizza3.jpeg" alt="Nuestras pizzas" loading="lazy">
-        <div class="gallery-label">Nuestras pizzas</div>
-      </div>
-      <div class="gallery-item tall reveal">
         <img src="img/pizza2.jpeg" alt="Recién salida del horno" loading="lazy">
         <div class="gallery-label">Recién salida del horno</div>
+      </div>
+      <div class="gallery-item tall reveal">
+        <img src="img/pizza3.jpeg" alt="Nuestras pizzas" loading="lazy">
+        <div class="gallery-label">Nuestras pizzas</div>
       </div>
       <div class="gallery-item reveal">
         <img src="img/calzones.jpeg" alt="Calzones" loading="lazy">
@@ -1097,7 +1101,7 @@
         <div class="gallery-label">Jamón y Queso</div>
       </div>
       <div class="gallery-item wide reveal">
-        <img src="img/cafe.jpeg" alt="Bebidas" loading="lazy">
+        <img src="img/cafe.jpeg" alt="Bebidas" loading="lazy" class="img-contain">
         <div class="gallery-label">Batidos y café</div>
       </div>
     </div>
@@ -1122,6 +1126,9 @@
             <a href="https://maps.google.com/?q=Pizza+Yaja+Cariari+Costa+Rica" target="_blank" class="btn-map">📍 Maps</a>
           </div>
         </div>
+        <div class="suc-map">
+          <iframe src="https://www.google.com/maps?q=Pizza+Yaja+Cariari+Costa+Rica&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Mapa Pizza Yaja Cariari"></iframe>
+        </div>
       </div>
 
       <div class="suc-card reveal">
@@ -1135,6 +1142,9 @@
             <a href="https://wa.me/50686588311" target="_blank" class="btn-wa">💬 WhatsApp</a>
             <a href="https://maps.google.com/?q=Pizza+Yaja+Guapiles+Costa+Rica" target="_blank" class="btn-map">📍 Maps</a>
           </div>
+        </div>
+        <div class="suc-map">
+          <iframe src="https://www.google.com/maps?q=Pizza+Yaja+Guapiles+Costa+Rica&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Mapa Pizza Yaja Guápiles"></iframe>
         </div>
       </div>
     </div>

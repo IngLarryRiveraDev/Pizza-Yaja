@@ -237,6 +237,7 @@ function sucUrl($s) {
     <div class="erp-nav-sec">Operaciones</div>
     <?= navItem('ventas.php',     '📈', 'Ventas',      $currentPage) ?>
     <?= navItem('historial.php',  '📋', 'Historial',   $currentPage) ?>
+    <?= navItem('cierres.php',    '💰', 'Cierres',     $currentPage) ?>
     <?= navItem('inventario.php', '📦', 'Inventario',  $currentPage) ?>
     <?= navItem('gastos.php',     '💸', 'Gastos',      $currentPage) ?>
 

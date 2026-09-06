@@ -593,6 +593,13 @@
     }
     .cf-radio.active { border-color: var(--orange); color: var(--orange-lt); background: rgba(255,107,0,.1); }
 
+    .envio-info {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; font-size: 13px; line-height: 1.5; color: var(--text);
+    }
+    .envio-info.ok { border-color: rgba(46,204,113,.4); color: #6fd88a; }
+    .envio-info.warn { border-color: rgba(255,152,0,.4); color: var(--orange-lt); }
+
     .sabor-modal-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 1400;
       display: none; align-items: center; justify-content: center; padding: 20px;
@@ -1234,6 +1241,11 @@
           <textarea class="cf-textarea" id="cfDireccion" placeholder="Ej. 200m sur de la escuela, casa portón negro"></textarea>
         </div>
 
+        <div class="cf-group" id="envioInfoGroup" style="display:none">
+          <label class="cf-label">Costo de envío</label>
+          <div class="envio-info" id="envioInfoBox">📍 Calculando distancia de envío...</div>
+        </div>
+
         <div class="cf-group">
           <label class="cf-label">Nombre</label>
           <input class="cf-input" id="cfNombre" placeholder="Tu nombre">
@@ -1322,6 +1334,77 @@
        CARRITO DE PEDIDOS ONLINE
     ====================================================== */
     const WA_NUMEROS = { cariari: '50685756873', guapiles: '50686588311' };
+    const SEDE_COORDS = {
+      cariari:  { lat: 10.364815637050356, lng: -83.73389040597718 },
+      guapiles: { lat: 10.216877647364228, lng: -83.79313431967935 }
+    };
+    let costoEnvioActual = 0;
+    let envioConfirmarWhatsapp = false;
+
+    function distanciaKm(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function calcularTarifaEnvio(km) {
+      if (km <= 3) return 500;
+      if (km <= 6) return 1000;
+      if (km <= 10) return 1500;
+      return null;
+    }
+
+    function calcularEnvio() {
+      costoEnvioActual = 0;
+      envioConfirmarWhatsapp = false;
+      const box = document.getElementById('envioInfoBox');
+      box.className = 'envio-info';
+      box.textContent = '📍 Calculando distancia de envío...';
+
+      if (!navigator.geolocation) {
+        box.classList.add('warn');
+        box.textContent = 'Tu navegador no permite obtener ubicación. El costo de envío se confirmará por WhatsApp.';
+        envioConfirmarWhatsapp = true;
+        actualizarTotales();
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const sede = SEDE_COORDS[sedeSeleccionada];
+          const km = distanciaKm(pos.coords.latitude, pos.coords.longitude, sede.lat, sede.lng);
+          const tarifa = calcularTarifaEnvio(km);
+          if (tarifa === null) {
+            box.className = 'envio-info warn';
+            box.textContent = '📍 Estás a ' + km.toFixed(1) + ' km — fuera de nuestra zona automática. El costo de envío se confirmará por WhatsApp.';
+            envioConfirmarWhatsapp = true;
+            costoEnvioActual = 0;
+          } else {
+            box.className = 'envio-info ok';
+            box.textContent = '📍 Distancia: ' + km.toFixed(1) + ' km · Envío: ₡' + tarifa.toLocaleString('es-CR');
+            costoEnvioActual = tarifa;
+          }
+          actualizarTotales();
+        },
+        () => {
+          box.className = 'envio-info warn';
+          box.textContent = 'No pudimos obtener tu ubicación. El costo de envío se confirmará por WhatsApp según tu dirección.';
+          envioConfirmarWhatsapp = true;
+          costoEnvioActual = 0;
+          actualizarTotales();
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
+    function actualizarTotales() {
+      let total = totalCarrito();
+      if (modalidadSeleccionada === 'domicilio') total += costoEnvioActual;
+      const el = document.getElementById('cartTotal2');
+      if (el) el.textContent = '₡' + total.toLocaleString('es-CR');
+    }
     const SABORES_PIZZA = ['Birria','Brasileña','Camarones','Canadiense','Chicharrón','Hawaiana','Jamón y Hongos','Jamón y Queso','Mar y Tierra','Mexicana','Napolitana','Pepperoni','Pollo','Salsa Blanca','Solo Carnes','Suprema','Vegetariana'];
     const SABORES_BATIDO_AGUA = ['Fresa Hierbabuena','Frutas','Guanábana','Limón Hierbabuena','Mango','Manzana Verde','Melón','Naranja Zanahoria','Papaya / Banano','Piña','Piña Hierbabuena','Piña y Apio','Sandía'];
     const SABORES_MILKSHAKE = ['Caramelo','Chicle','Chocolate','Churchill','Fresa','Menta','Oreo','Piña Colada'];
@@ -1389,9 +1472,8 @@
           </div>
         `).join('');
       }
-      const totalTxt = '₡' + totalCarrito().toLocaleString('es-CR');
-      document.getElementById('cartTotal').textContent = totalTxt;
-      document.getElementById('cartTotal2').textContent = totalTxt;
+      document.getElementById('cartTotal').textContent = '₡' + totalCarrito().toLocaleString('es-CR');
+      actualizarTotales();
       document.getElementById('cartCheckoutBtn').disabled = carrito.length === 0;
     }
 
@@ -1424,12 +1506,21 @@
       sedeSeleccionada = sede;
       document.querySelectorAll('.cf-sede').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      if (modalidadSeleccionada === 'domicilio') calcularEnvio();
     }
     function elegirModalidad(mod, btn) {
       modalidadSeleccionada = mod;
       document.querySelectorAll('.cf-modalidad').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('direccionGroup').style.display = mod === 'domicilio' ? 'block' : 'none';
+      document.getElementById('envioInfoGroup').style.display = mod === 'domicilio' ? 'block' : 'none';
+      if (mod === 'domicilio') {
+        calcularEnvio();
+      } else {
+        costoEnvioActual = 0;
+        envioConfirmarWhatsapp = false;
+        actualizarTotales();
+      }
     }
 
     function enviarPedidoWhatsApp() {
@@ -1455,7 +1546,18 @@
       carrito.forEach(item => {
         msg += '- ' + item.cantidad + 'x ' + item.nombre + (item.nota ? ' (' + item.nota + ')' : '') + ' - ₡' + (item.precio * item.cantidad).toLocaleString('es-CR') + '\n';
       });
-      msg += '\n💰 *Total: ₡' + totalCarrito().toLocaleString('es-CR') + '*\n\n';
+
+      let total = totalCarrito();
+      if (modalidadSeleccionada === 'domicilio') {
+        if (envioConfirmarWhatsapp) {
+          msg += '\n🛵 Envío: a confirmar según dirección\n';
+        } else {
+          msg += '\n🛵 Envío: ₡' + costoEnvioActual.toLocaleString('es-CR') + '\n';
+          total += costoEnvioActual;
+        }
+      }
+
+      msg += '\n💰 *Total: ₡' + total.toLocaleString('es-CR') + (modalidadSeleccionada === 'domicilio' && envioConfirmarWhatsapp ? ' + envío*\n\n' : '*\n\n');
       msg += '👤 Cliente: ' + nombre + '\n📱 Teléfono: ' + telefono + '\n';
       if (notas) msg += '📝 Notas: ' + notas + '\n';
 

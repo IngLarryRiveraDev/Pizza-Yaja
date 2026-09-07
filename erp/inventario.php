@@ -6,7 +6,13 @@ if(!isset($_SESSION['usuario_id']) || $_SESSION['rol'] != 'admin') {
 require_once '../config.php';
 $conn = getConnection();
 
-// ── Tablas
+// Sucursal activa
+if(isset($_GET['suc']) && in_array($_GET['suc'], ['cariari','guapiles','ambas'])) {
+    $_SESSION['erp_sucursal'] = $_GET['suc'];
+}
+$suc_filtro = $_SESSION['erp_sucursal'] ?? 'ambas';
+
+// ── Tablas ────────────────────────────────────────────────────────────────────
 $conn->exec("
   CREATE TABLE IF NOT EXISTS ingredientes (
     id             INT AUTO_INCREMENT PRIMARY KEY,
@@ -21,6 +27,15 @@ $conn->exec("
   )
 ");
 $conn->exec("
+  CREATE TABLE IF NOT EXISTS stock_sucursal (
+    ingrediente_id INT NOT NULL,
+    sucursal       VARCHAR(20) NOT NULL,
+    stock_actual   DECIMAL(10,2) NOT NULL DEFAULT 0,
+    stock_minimo   DECIMAL(10,2) NOT NULL DEFAULT 0,
+    PRIMARY KEY (ingrediente_id, sucursal)
+  )
+");
+$conn->exec("
   CREATE TABLE IF NOT EXISTS movimientos_inventario (
     id             INT AUTO_INCREMENT PRIMARY KEY,
     ingrediente_id INT NOT NULL,
@@ -28,14 +43,33 @@ $conn->exec("
     cantidad       DECIMAL(10,2) NOT NULL,
     stock_antes    DECIMAL(10,2) NOT NULL,
     stock_despues  DECIMAL(10,2) NOT NULL,
+    sucursal       VARCHAR(20)  NOT NULL DEFAULT 'cariari',
     nota           VARCHAR(255),
     usuario_id     INT,
     fecha          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (ingrediente_id) REFERENCES ingredientes(id) ON DELETE CASCADE
   )
 ");
-// Agregar columna categoria si faltaba en instalaciones previas
+// Migrar columnas legacy si faltan
 try { $conn->exec("ALTER TABLE ingredientes ADD COLUMN categoria VARCHAR(50) NOT NULL DEFAULT 'otros' AFTER nombre"); } catch(PDOException $e) {}
+try { $conn->exec("ALTER TABLE movimientos_inventario ADD COLUMN sucursal VARCHAR(20) NOT NULL DEFAULT 'cariari' AFTER stock_despues"); } catch(PDOException $e) {}
+
+// Migración única: si stock_sucursal está vacía, copiar de ingredientes → cariari
+$countSS  = (int)$conn->query("SELECT COUNT(*) FROM stock_sucursal")->fetchColumn();
+$countIng = (int)$conn->query("SELECT COUNT(*) FROM ingredientes")->fetchColumn();
+if($countSS === 0 && $countIng > 0) {
+    $conn->exec("INSERT IGNORE INTO stock_sucursal (ingrediente_id,sucursal,stock_actual,stock_minimo)
+                 SELECT id,'cariari',COALESCE(stock_actual,0),COALESCE(stock_minimo,0) FROM ingredientes");
+    $conn->exec("INSERT IGNORE INTO stock_sucursal (ingrediente_id,sucursal,stock_actual,stock_minimo)
+                 SELECT id,'guapiles',0,COALESCE(stock_minimo,0) FROM ingredientes");
+}
+// Garantizar filas para ingredientes nuevos (sin entradas en stock_sucursal)
+$conn->exec("INSERT IGNORE INTO stock_sucursal (ingrediente_id,sucursal,stock_actual,stock_minimo)
+             SELECT id,'cariari',0,0 FROM ingredientes
+             WHERE id NOT IN (SELECT ingrediente_id FROM stock_sucursal WHERE sucursal='cariari')");
+$conn->exec("INSERT IGNORE INTO stock_sucursal (ingrediente_id,sucursal,stock_actual,stock_minimo)
+             SELECT id,'guapiles',0,0 FROM ingredientes
+             WHERE id NOT IN (SELECT ingrediente_id FROM stock_sucursal WHERE sucursal='guapiles')");
 
 // ── AJAX ──────────────────────────────────────────────────────────────────────
 if($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -44,21 +78,37 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $d['accion'] ?? '';
     try {
         if($accion === 'crear') {
-            $conn->prepare("INSERT INTO ingredientes (nombre,categoria,unidad,stock_actual,stock_minimo,costo_unitario) VALUES (?,?,?,?,?,?)")
-                 ->execute([$d['nombre'], $d['categoria'] ?? 'otros', $d['unidad'], $d['stock_actual'], $d['stock_minimo'], $d['costo_unitario']]);
+            $conn->prepare("INSERT INTO ingredientes (nombre,categoria,unidad,costo_unitario,activo) VALUES (?,?,?,?,1)")
+                 ->execute([$d['nombre'], $d['categoria']??'otros', $d['unidad'], $d['costo_unitario']]);
+            $nid = $conn->lastInsertId();
+            $conn->prepare("INSERT INTO stock_sucursal (ingrediente_id,sucursal,stock_actual,stock_minimo) VALUES (?,?,?,?)")
+                 ->execute([$nid,'cariari', $d['stock_cariari']??0, $d['min_cariari']??0]);
+            $conn->prepare("INSERT INTO stock_sucursal (ingrediente_id,sucursal,stock_actual,stock_minimo) VALUES (?,?,?,?)")
+                 ->execute([$nid,'guapiles',$d['stock_guapiles']??0,$d['min_guapiles']??0]);
             echo json_encode(['success'=>true]);
 
         } elseif($accion === 'editar') {
-            $conn->prepare("UPDATE ingredientes SET nombre=?,categoria=?,unidad=?,stock_minimo=?,costo_unitario=? WHERE id=?")
-                 ->execute([$d['nombre'], $d['categoria'] ?? 'otros', $d['unidad'], $d['stock_minimo'], $d['costo_unitario'], $d['id']]);
+            $conn->prepare("UPDATE ingredientes SET nombre=?,categoria=?,unidad=?,costo_unitario=? WHERE id=?")
+                 ->execute([$d['nombre'], $d['categoria']??'otros', $d['unidad'], $d['costo_unitario'], $d['id']]);
+            $conn->prepare("UPDATE stock_sucursal SET stock_minimo=? WHERE ingrediente_id=? AND sucursal='cariari'")
+                 ->execute([$d['min_cariari']??0, $d['id']]);
+            $conn->prepare("UPDATE stock_sucursal SET stock_minimo=? WHERE ingrediente_id=? AND sucursal='guapiles'")
+                 ->execute([$d['min_guapiles']??0, $d['id']]);
             echo json_encode(['success'=>true]);
 
         } elseif($accion === 'movimiento') {
-            $row = $conn->prepare("SELECT stock_actual FROM ingredientes WHERE id=?");
-            $row->execute([$d['id']]);
-            $ing = $row->fetch();
-            if(!$ing) { echo json_encode(['success'=>false,'error'=>'No encontrado']); exit; }
-
+            $suc = $d['sucursal'] ?? 'cariari';
+            if(!in_array($suc, ['cariari','guapiles'])) {
+                echo json_encode(['success'=>false,'error'=>'Seleccioná una sucursal específica']); exit;
+            }
+            $row = $conn->prepare("SELECT stock_actual FROM stock_sucursal WHERE ingrediente_id=? AND sucursal=?");
+            $row->execute([$d['id'], $suc]);
+            $ing = $row->fetch(PDO::FETCH_ASSOC);
+            if(!$ing) {
+                $conn->prepare("INSERT IGNORE INTO stock_sucursal (ingrediente_id,sucursal,stock_actual,stock_minimo) VALUES (?,?,0,0)")
+                     ->execute([$d['id'], $suc]);
+                $ing = ['stock_actual'=>0];
+            }
             $antes = (float)$ing['stock_actual'];
             $cant  = (float)$d['cantidad'];
             if($d['tipo'] === 'entrada') {
@@ -70,10 +120,11 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $despues = $cant;
                 $cant = round(abs($despues - $antes), 2);
             }
-            $conn->prepare("UPDATE ingredientes SET stock_actual=? WHERE id=?")->execute([$despues, $d['id']]);
-            $conn->prepare("INSERT INTO movimientos_inventario (ingrediente_id,tipo,cantidad,stock_antes,stock_despues,nota,usuario_id) VALUES (?,?,?,?,?,?,?)")
-                 ->execute([$d['id'], $d['tipo'], $cant, $antes, $despues, $d['nota'] ?? null, $_SESSION['usuario_id']]);
-            echo json_encode(['success'=>true, 'stock_nuevo'=>$despues]);
+            $conn->prepare("UPDATE stock_sucursal SET stock_actual=? WHERE ingrediente_id=? AND sucursal=?")
+                 ->execute([$despues, $d['id'], $suc]);
+            $conn->prepare("INSERT INTO movimientos_inventario (ingrediente_id,tipo,cantidad,stock_antes,stock_despues,sucursal,nota,usuario_id) VALUES (?,?,?,?,?,?,?,?)")
+                 ->execute([$d['id'],$d['tipo'],$cant,$antes,$despues,$suc,$d['nota']??null,$_SESSION['usuario_id']]);
+            echo json_encode(['success'=>true,'stock_nuevo'=>$despues]);
 
         } elseif($accion === 'toggle_activo') {
             $conn->prepare("UPDATE ingredientes SET activo = NOT activo WHERE id=?")->execute([$d['id']]);
@@ -91,44 +142,70 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
 // ── DATOS ─────────────────────────────────────────────────────────────────────
 $tab = $_GET['tab'] ?? 'stock';
 
-// Ingredientes activos
-$ingredientes = $conn->query("SELECT * FROM ingredientes WHERE activo=1 ORDER BY categoria, nombre")->fetchAll();
-$inactivos    = $conn->query("SELECT * FROM ingredientes WHERE activo=0 ORDER BY nombre")->fetchAll();
+if($suc_filtro !== 'ambas') {
+    $qIng = $conn->prepare("
+        SELECT i.*, ss.stock_actual, ss.stock_minimo
+        FROM ingredientes i
+        LEFT JOIN stock_sucursal ss ON ss.ingrediente_id=i.id AND ss.sucursal=?
+        WHERE i.activo=1 ORDER BY i.categoria, i.nombre
+    ");
+    $qIng->execute([$suc_filtro]);
+    $ingredientes = $qIng->fetchAll();
+} else {
+    $ingredientes = $conn->query("
+        SELECT i.*,
+               COALESCE(sc.stock_actual,0) AS stock_cariari,
+               COALESCE(sc.stock_minimo,0) AS min_cariari,
+               COALESCE(sg.stock_actual,0) AS stock_guapiles,
+               COALESCE(sg.stock_minimo,0) AS min_guapiles
+        FROM ingredientes i
+        LEFT JOIN stock_sucursal sc ON sc.ingrediente_id=i.id AND sc.sucursal='cariari'
+        LEFT JOIN stock_sucursal sg ON sg.ingrediente_id=i.id AND sg.sucursal='guapiles'
+        WHERE i.activo=1 ORDER BY i.categoria, i.nombre
+    ")->fetchAll();
+}
+$inactivos = $conn->query("SELECT * FROM ingredientes WHERE activo=0 ORDER BY nombre")->fetchAll();
 
 // KPIs
-$bajominimo  = array_filter($ingredientes, fn($i) => (float)$i['stock_actual'] <= (float)$i['stock_minimo'] && (float)$i['stock_minimo'] > 0);
-$valorTotal  = array_sum(array_map(fn($i) => $i['stock_actual'] * $i['costo_unitario'], $ingredientes));
-$movsHoy     = (int)$conn->query("SELECT COUNT(*) FROM movimientos_inventario WHERE DATE(fecha)=CURDATE()")->fetchColumn();
+if($suc_filtro !== 'ambas') {
+    $bajominimo = array_filter($ingredientes, fn($i) => (float)$i['stock_actual'] <= (float)$i['stock_minimo'] && (float)$i['stock_minimo'] > 0);
+    $valorTotal = array_sum(array_map(fn($i) => $i['stock_actual'] * $i['costo_unitario'], $ingredientes));
+} else {
+    $bajominimo = [];
+    $valorTotal = array_sum(array_map(fn($i) => ($i['stock_cariari'] + $i['stock_guapiles']) * $i['costo_unitario'], $ingredientes));
+}
+$movsQ = "SELECT COUNT(*) FROM movimientos_inventario WHERE DATE(fecha)=CURDATE()" . ($suc_filtro !== 'ambas' ? " AND sucursal='{$suc_filtro}'" : "");
+$movsHoy = (int)$conn->query($movsQ)->fetchColumn();
 
-// Categorías únicas
 $cats = array_unique(array_column($ingredientes, 'categoria'));
 sort($cats);
 
-// Filtros para movimientos
+// Filtros movimientos
 $fIng   = (int)($_GET['ing']   ?? 0);
 $fTipo  = $_GET['tipo']  ?? '';
 $fDesde = $_GET['desde'] ?? date('Y-m-d', strtotime('-30 day'));
 $fHasta = $_GET['hasta'] ?? date('Y-m-d');
 
-$mWhere = ["m.fecha BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)"];
+$mWhere  = ["m.fecha BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)"];
 $mParams = [$fDesde, $fHasta];
 if($fIng)  { $mWhere[] = "m.ingrediente_id=?"; $mParams[] = $fIng; }
 if($fTipo) { $mWhere[] = "m.tipo=?";           $mParams[] = $fTipo; }
+if($suc_filtro !== 'ambas') { $mWhere[] = "m.sucursal=?"; $mParams[] = $suc_filtro; }
 $mSQL = "WHERE " . implode(" AND ", $mWhere);
 
-$movimientos = $conn->prepare("
+$qMovs = $conn->prepare("
   SELECT m.*, i.nombre AS ingrediente, i.unidad
   FROM movimientos_inventario m JOIN ingredientes i ON m.ingrediente_id=i.id
   {$mSQL} ORDER BY m.fecha DESC LIMIT 200
 ");
-$movimientos->execute($mParams);
-$movs = $movimientos->fetchAll();
+$qMovs->execute($mParams);
+$movs = $qMovs->fetchAll();
 
-// Totales del período filtrado
 $entradas = array_sum(array_map(fn($m) => $m['tipo']==='entrada' ? $m['cantidad'] : 0, $movs));
 $salidas  = array_sum(array_map(fn($m) => $m['tipo']==='salida'  ? $m['cantidad'] : 0, $movs));
 
 $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas','empaques','otros'];
+$suc_nombres = ['cariari'=>'Cariari','guapiles'=>'Guapiles'];
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -141,6 +218,12 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
 .prog-fill { height:100%; border-radius:3px; transition:width .3s; }
 .cat-header { background:#f8f8f8; font-size:11px; font-weight:800; letter-spacing:1px;
               text-transform:uppercase; color:#888; padding:8px 14px; border-bottom:1px solid #f0f0f0; }
+.suc-col { text-align:right; min-width:100px; }
+.aviso-ambas {
+  background:#fff3e0; border:2px dashed #ffcc80; border-radius:10px;
+  padding:12px 16px; color:#e65100; font-size:13px; text-align:center;
+  margin-bottom:16px; display:flex; align-items:center; justify-content:center; gap:8px;
+}
 </style>
 </head>
 <body class="erp">
@@ -172,19 +255,19 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
         <div class="kpi-icon">⚠</div>
         <div class="kpi-lbl">Bajo mínimo</div>
         <div class="kpi-val"><?= count($bajominimo) ?></div>
-        <div class="kpi-sub"><?= count($bajominimo)>0?'necesitan reposición':'todo en orden' ?></div>
+        <div class="kpi-sub"><?= $suc_filtro==='ambas' ? 'seleccioná sucursal' : (count($bajominimo)>0?'necesitan reposición':'todo en orden') ?></div>
       </div>
       <div class="kpi blu">
         <div class="kpi-icon">💰</div>
         <div class="kpi-lbl">Valor en stock</div>
         <div class="kpi-val" style="font-size:20px">₡<?= number_format($valorTotal,0) ?></div>
-        <div class="kpi-sub">costo total del inventario</div>
+        <div class="kpi-sub"><?= $suc_filtro==='ambas' ? 'ambas sucursales' : 'costo total' ?></div>
       </div>
       <div class="kpi pur">
         <div class="kpi-icon">🔄</div>
         <div class="kpi-lbl">Movimientos hoy</div>
         <div class="kpi-val"><?= $movsHoy ?></div>
-        <div class="kpi-sub">entradas y salidas</div>
+        <div class="kpi-sub"><?= $suc_filtro==='ambas' ? 'todas las sucursales' : ($suc_nombres[$suc_filtro]??$suc_filtro) ?></div>
       </div>
     </div>
 
@@ -203,9 +286,79 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
     <!-- ── TAB STOCK ─────────────────────────────────────── -->
     <div id="sec-stock">
 
+      <?php if($suc_filtro === 'ambas'): ?>
+      <!-- Vista comparativa Ambas -->
+      <div class="aviso-ambas">
+        📍 Modo comparativo — para registrar movimientos seleccioná <strong>Cariari</strong> o <strong>Guapiles</strong> en el sidebar
+      </div>
+
+      <?php if(empty($ingredientes)): ?>
+        <div class="ec" style="text-align:center;padding:50px 20px;color:#aaa">
+          <div style="font-size:48px;margin-bottom:12px">📦</div>
+          <strong>Sin ingredientes</strong><br>
+          <small>Agregá tu primer ingrediente con el botón superior</small>
+        </div>
+      <?php else: ?>
+      <div class="ec">
+        <div class="ec-head">Comparación de stock por sucursal</div>
+        <div class="ec-body np" style="overflow-x:auto">
+          <table class="et" style="min-width:680px">
+            <thead>
+              <tr>
+                <th>Ingrediente</th>
+                <th>Categoría</th>
+                <th style="text-align:right;border-left:1px solid #eee">📍 Cariari</th>
+                <th style="text-align:right">Mín.</th>
+                <th style="text-align:right;border-left:1px solid #eee">📍 Guápiles</th>
+                <th style="text-align:right">Mín.</th>
+                <th style="text-align:right">Costo unit.</th>
+                <th>Editar</th>
+              </tr>
+            </thead>
+            <tbody>
+            <?php
+            $catActual = null;
+            foreach($ingredientes as $ing):
+              $bajoCar  = (float)$ing['stock_cariari']  <= (float)$ing['min_cariari']  && (float)$ing['min_cariari']  > 0;
+              $bajoGua  = (float)$ing['stock_guapiles'] <= (float)$ing['min_guapiles'] && (float)$ing['min_guapiles'] > 0;
+              if($ing['categoria'] !== $catActual):
+                $catActual = $ing['categoria'];
+            ?>
+              <tr><td colspan="8" class="cat-header"><?= htmlspecialchars(ucfirst($catActual)) ?></td></tr>
+            <?php endif; ?>
+              <tr>
+                <td><strong><?= htmlspecialchars($ing['nombre']) ?></strong></td>
+                <td style="color:#888;font-size:12px"><?= htmlspecialchars($ing['unidad']) ?></td>
+                <td class="suc-col" style="border-left:1px solid #f5f5f5">
+                  <span style="font-weight:700;color:<?= $bajoCar?'var(--red)':'var(--text)' ?>">
+                    <?= $ing['stock_cariari']+0 ?>
+                  </span>
+                  <?php if($bajoCar): ?><span class="bdg bdg-red" style="font-size:10px;margin-left:4px">↓</span><?php endif; ?>
+                </td>
+                <td class="suc-col" style="color:#aaa;font-size:12px"><?= $ing['min_cariari']+0 ?></td>
+                <td class="suc-col" style="border-left:1px solid #f5f5f5">
+                  <span style="font-weight:700;color:<?= $bajoGua?'var(--red)':'var(--text)' ?>">
+                    <?= $ing['stock_guapiles']+0 ?>
+                  </span>
+                  <?php if($bajoGua): ?><span class="bdg bdg-red" style="font-size:10px;margin-left:4px">↓</span><?php endif; ?>
+                </td>
+                <td class="suc-col" style="color:#aaa;font-size:12px"><?= $ing['min_guapiles']+0 ?></td>
+                <td class="suc-col" style="font-size:13px">₡<?= number_format($ing['costo_unitario'],0) ?></td>
+                <td><button class="eb gry" style="padding:3px 8px;font-size:11px" onclick='editarIng(<?= json_encode($ing) ?>)'>✎</button></td>
+              </tr>
+            <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <?php else: ?>
+      <!-- Vista específica de sucursal -->
+
       <?php if(count($bajominimo) > 0): ?>
       <div class="ec" style="border-left:4px solid var(--red);margin-bottom:16px">
-        <div class="ec-head" style="color:var(--red)">⚠ Requieren reposición urgente</div>
+        <div class="ec-head" style="color:var(--red)">⚠ Requieren reposición urgente — <?= $suc_nombres[$suc_filtro]??$suc_filtro ?></div>
         <div class="ec-body np">
           <table class="et">
             <thead><tr><th>Ingrediente</th><th>Stock actual</th><th>Mínimo</th><th>Faltante</th><th>Acción</th></tr></thead>
@@ -229,13 +382,13 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
         <div class="ec" style="text-align:center;padding:50px 20px;color:#aaa">
           <div style="font-size:48px;margin-bottom:12px">📦</div>
           <strong>Sin ingredientes</strong><br>
-          <small>Agrega tu primer ingrediente con el botón superior</small>
+          <small>Agregá tu primer ingrediente con el botón superior</small>
         </div>
       <?php else: ?>
       <div class="ec">
         <div class="ec-head" style="justify-content:space-between">
-          <span>Todos los ingredientes</span>
-          <span style="font-size:12px;color:#888;font-weight:400">Valor total: <strong style="color:var(--text)">₡<?= number_format($valorTotal,0) ?></strong></span>
+          <span>Stock — <?= $suc_nombres[$suc_filtro]??$suc_filtro ?></span>
+          <span style="font-size:12px;color:#888;font-weight:400">Valor: <strong style="color:var(--text)">₡<?= number_format($valorTotal,0) ?></strong></span>
         </div>
         <div class="ec-body np">
           <table class="et" style="min-width:640px">
@@ -261,22 +414,16 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
               if($ing['categoria'] !== $catActual):
                 $catActual = $ing['categoria'];
             ?>
-              <tr>
-                <td colspan="7" class="cat-header"><?= htmlspecialchars(ucfirst($catActual)) ?></td>
-              </tr>
+              <tr><td colspan="7" class="cat-header"><?= htmlspecialchars(ucfirst($catActual)) ?></td></tr>
             <?php endif; ?>
               <tr>
                 <td><strong><?= htmlspecialchars($ing['nombre']) ?></strong></td>
                 <td>
-                  <span style="font-weight:700;color:<?= $bajo?'var(--red)':'var(--text)' ?>">
-                    <?= $ing['stock_actual']+0 ?>
-                  </span>
+                  <span style="font-weight:700;color:<?= $bajo?'var(--red)':'var(--text)' ?>"><?= $ing['stock_actual']+0 ?></span>
                   <span style="color:#aaa;font-size:11px"> <?= $ing['unidad'] ?></span>
                 </td>
                 <td>
-                  <div class="prog-bar">
-                    <div class="prog-fill" style="width:<?= $pct ?>%;background:<?= $barColor ?>"></div>
-                  </div>
+                  <div class="prog-bar"><div class="prog-fill" style="width:<?= $pct ?>%;background:<?= $barColor ?>"></div></div>
                   <span style="font-size:10px;color:#aaa"><?= round($pct) ?>%</span>
                 </td>
                 <td style="color:#888;font-size:13px"><?= $ing['stock_minimo']+0 ?> <?= $ing['unidad'] ?></td>
@@ -288,7 +435,7 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
                     <button class="eb red" style="padding:3px 8px;font-size:11px" onclick='abrirMov(<?= json_encode($ing) ?>,"salida")'>–</button>
                     <button class="eb blu" style="padding:3px 8px;font-size:11px" onclick='abrirMov(<?= json_encode($ing) ?>,"ajuste")'>⚖</button>
                     <button class="eb gry" style="padding:3px 8px;font-size:11px" onclick='editarIng(<?= json_encode($ing) ?>)'>✎</button>
-                    <button class="eb gry" style="padding:3px 8px;font-size:11px;opacity:.7" onclick="toggleActivo(<?= $ing['id'] ?>, '<?= htmlspecialchars($ing['nombre']) ?>', false)" title="Desactivar">✕</button>
+                    <button class="eb gry" style="padding:3px 8px;font-size:11px;opacity:.7" onclick="toggleActivo(<?= $ing['id'] ?>,'<?= htmlspecialchars($ing['nombre'],ENT_QUOTES) ?>',false)" title="Desactivar">✕</button>
                   </div>
                 </td>
               </tr>
@@ -298,6 +445,7 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
         </div>
       </div>
       <?php endif; ?>
+      <?php endif; // fin if ambas vs específica ?>
 
       <?php if(!empty($inactivos)): ?>
       <div class="ec" style="margin-top:16px;border-left:3px solid #ddd">
@@ -308,14 +456,13 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
         <div id="sec-inactivos" style="display:none">
           <div class="ec-body np">
             <table class="et">
-              <thead><tr><th>Nombre</th><th>Categoría</th><th>Último stock</th><th>Acción</th></tr></thead>
+              <thead><tr><th>Nombre</th><th>Categoría</th><th>Acción</th></tr></thead>
               <tbody>
               <?php foreach($inactivos as $in): ?>
                 <tr style="opacity:.6">
                   <td><?= htmlspecialchars($in['nombre']) ?></td>
                   <td style="color:#aaa"><?= htmlspecialchars($in['categoria']) ?></td>
-                  <td style="color:#aaa"><?= $in['stock_actual']+0 ?> <?= $in['unidad'] ?></td>
-                  <td><button class="eb grn" style="padding:4px 10px;font-size:12px" onclick="toggleActivo(<?= $in['id'] ?>, '<?= htmlspecialchars($in['nombre']) ?>', true)">Reactivar</button></td>
+                  <td><button class="eb grn" style="padding:4px 10px;font-size:12px" onclick="toggleActivo(<?= $in['id'] ?>,'<?= htmlspecialchars($in['nombre'],ENT_QUOTES) ?>',true)">Reactivar</button></td>
                 </tr>
               <?php endforeach; ?>
               </tbody>
@@ -330,7 +477,6 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
     <!-- ── TAB MOVIMIENTOS ───────────────────────────────── -->
     <div id="sec-movs" style="display:none">
 
-      <!-- Filtros -->
       <form method="get" class="ec" style="margin-bottom:16px">
         <input type="hidden" name="tab" value="movs">
         <div class="ec-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
@@ -365,7 +511,6 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
         </div>
       </form>
 
-      <!-- Resumen período -->
       <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
         <div class="kpi grn">
           <div class="kpi-lbl">Total entradas</div>
@@ -380,7 +525,7 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
         <div class="kpi blu">
           <div class="kpi-lbl">Ajustes</div>
           <div class="kpi-val" style="font-size:20px"><?= count(array_filter($movs,fn($m)=>$m['tipo']==='ajuste')) ?></div>
-          <div class="kpi-sub">correcciones de stock</div>
+          <div class="kpi-sub">correcciones</div>
         </div>
       </div>
 
@@ -395,6 +540,7 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
               <tr>
                 <th>Fecha</th>
                 <th>Ingrediente</th>
+                <th>Sucursal</th>
                 <th>Tipo</th>
                 <th>Cantidad</th>
                 <th>Antes → Después</th>
@@ -404,20 +550,20 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
             <tbody>
             <?php foreach($movs as $m):
               $tcls = $m['tipo']==='entrada'?'bdg-grn':($m['tipo']==='salida'?'bdg-red':'bdg-blu');
+              $scls = ($m['sucursal']??'') === 'guapiles' ? 'bdg-blu' : 'bdg-org';
             ?>
               <tr>
                 <td style="white-space:nowrap;font-size:12px;color:#888"><?= date('d/m/Y H:i', strtotime($m['fecha'])) ?></td>
                 <td><strong><?= htmlspecialchars($m['ingrediente']) ?></strong></td>
+                <td><span class="bdg <?= $scls ?>" style="font-size:10px"><?= ucfirst($m['sucursal']??'—') ?></span></td>
                 <td><span class="bdg <?= $tcls ?>"><?= ucfirst($m['tipo']) ?></span></td>
                 <td style="font-weight:600"><?= $m['cantidad']+0 ?> <span style="color:#aaa;font-size:11px"><?= $m['unidad'] ?></span></td>
-                <td style="font-size:12px;color:#888;white-space:nowrap">
-                  <?= $m['stock_antes']+0 ?> → <strong style="color:var(--text)"><?= $m['stock_despues']+0 ?></strong>
-                </td>
+                <td style="font-size:12px;color:#888;white-space:nowrap"><?= $m['stock_antes']+0 ?> → <strong style="color:var(--text)"><?= $m['stock_despues']+0 ?></strong></td>
                 <td style="color:#888;font-size:12px;max-width:180px"><?= htmlspecialchars($m['nota'] ?? '—') ?></td>
               </tr>
             <?php endforeach; ?>
             <?php if(empty($movs)): ?>
-              <tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">Sin movimientos en este período</td></tr>
+              <tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">Sin movimientos en este período</td></tr>
             <?php endif; ?>
             </tbody>
           </table>
@@ -430,7 +576,7 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
 
 <!-- ── Modal ingrediente ─────────────────────────────────────────────────── -->
 <div id="modalIng" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center;padding:12px">
-  <div style="background:#fff;border-radius:12px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto">
+  <div style="background:#fff;border-radius:12px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto">
     <div style="padding:16px 20px;border-bottom:1px solid #eee;font-weight:700;font-size:15px;display:flex;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
       <span id="ingTitle">Nuevo ingrediente</span>
       <button onclick="cerrarModalIng()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">×</button>
@@ -459,20 +605,43 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
           </datalist>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-        <div class="ef-group">
-          <label class="ef-label">Stock inicial</label>
-          <input class="ef" type="number" id="ingStock" min="0" step="0.01" placeholder="0">
+      <div class="ef-group">
+        <label class="ef-label">Costo unitario (₡)</label>
+        <input class="ef" type="number" id="ingCosto" min="0" step="1" placeholder="0">
+      </div>
+
+      <!-- Stock inicial (solo al crear) -->
+      <div id="secStockInicial">
+        <div style="font-size:11px;font-weight:800;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin:14px 0 8px;border-top:1px solid #f0f0f0;padding-top:12px">
+          Stock inicial
         </div>
-        <div class="ef-group">
-          <label class="ef-label">Stock mínimo</label>
-          <input class="ef" type="number" id="ingMinimo" min="0" step="0.01" placeholder="0">
-        </div>
-        <div class="ef-group">
-          <label class="ef-label">Costo unit. (₡)</label>
-          <input class="ef" type="number" id="ingCosto" min="0" step="1" placeholder="0">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="ef-group">
+            <label class="ef-label">📍 Cariari</label>
+            <input class="ef" type="number" id="ingStockCar" min="0" step="0.01" placeholder="0">
+          </div>
+          <div class="ef-group">
+            <label class="ef-label">📍 Guápiles</label>
+            <input class="ef" type="number" id="ingStockGua" min="0" step="0.01" placeholder="0">
+          </div>
         </div>
       </div>
+
+      <!-- Mínimos (siempre) -->
+      <div style="font-size:11px;font-weight:800;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin:14px 0 8px;border-top:1px solid #f0f0f0;padding-top:12px">
+        Stock mínimo (alerta)
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="ef-group">
+          <label class="ef-label">📍 Cariari</label>
+          <input class="ef" type="number" id="ingMinCar" min="0" step="0.01" placeholder="0">
+        </div>
+        <div class="ef-group">
+          <label class="ef-label">📍 Guápiles</label>
+          <input class="ef" type="number" id="ingMinGua" min="0" step="0.01" placeholder="0">
+        </div>
+      </div>
+
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
         <button class="eb gry" onclick="cerrarModalIng()">Cancelar</button>
         <button class="eb ora" onclick="guardarIng()">Guardar</button>
@@ -491,9 +660,13 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
     <div style="padding:20px">
       <input type="hidden" id="movId">
       <input type="hidden" id="movTipo">
+      <input type="hidden" id="movSucursal" value="<?= htmlspecialchars($suc_filtro) ?>">
       <div style="background:#f5f5f5;border-radius:8px;padding:12px;margin-bottom:14px">
         <strong id="movNombre" style="font-size:15px"></strong>
-        <div style="color:#888;margin-top:4px;font-size:13px">Stock actual: <strong id="movStockActual"></strong></div>
+        <div style="color:#888;margin-top:4px;font-size:13px">
+          Stock actual: <strong id="movStockActual"></strong>
+          <span class="bdg bdg-org" style="font-size:10px;margin-left:6px"><?= $suc_nombres[$suc_filtro] ?? $suc_filtro ?></span>
+        </div>
         <div class="prog-bar" style="margin-top:8px"><div class="prog-fill" id="movProg" style="width:0%;background:#4caf50"></div></div>
       </div>
       <div class="ef-group" id="cantWrap">
@@ -517,6 +690,8 @@ $CATS_PREDEFINIDAS = ['masas','lácteos','carnes','salsas','vegetales','bebidas'
 </div>
 
 <script>
+const SUC_ACTUAL = '<?= $suc_filtro ?>';
+
 // ── Tabs
 function setTab(t) {
   document.getElementById('sec-stock').style.display = t==='stock' ? 'block' : 'none';
@@ -541,14 +716,16 @@ function toggleInactivos() {
 
 // ── Modal ingrediente
 function abrirModalIng(ing) {
-  document.getElementById('ingId').value     = ing ? ing.id : '';
-  document.getElementById('ingNombre').value = ing ? ing.nombre : '';
-  document.getElementById('ingCat').value    = ing ? (ing.categoria||'otros') : 'otros';
-  document.getElementById('ingUnidad').value = ing ? ing.unidad : '';
-  document.getElementById('ingStock').value  = ing ? ing.stock_actual : '';
-  document.getElementById('ingMinimo').value = ing ? ing.stock_minimo : '';
-  document.getElementById('ingCosto').value  = ing ? ing.costo_unitario : '';
-  document.getElementById('ingStock').disabled = !!ing;
+  document.getElementById('ingId').value      = ing ? ing.id : '';
+  document.getElementById('ingNombre').value  = ing ? ing.nombre : '';
+  document.getElementById('ingCat').value     = ing ? (ing.categoria||'otros') : 'otros';
+  document.getElementById('ingUnidad').value  = ing ? ing.unidad : '';
+  document.getElementById('ingCosto').value   = ing ? ing.costo_unitario : '';
+  document.getElementById('ingStockCar').value = '';
+  document.getElementById('ingStockGua').value = '';
+  document.getElementById('ingMinCar').value  = ing ? (ing.min_cariari ?? ing.stock_minimo ?? '') : '';
+  document.getElementById('ingMinGua').value  = ing ? (ing.min_guapiles ?? ing.stock_minimo ?? '') : '';
+  document.getElementById('secStockInicial').style.display = ing ? 'none' : 'block';
   document.getElementById('ingTitle').textContent = ing ? 'Editar ingrediente' : 'Nuevo ingrediente';
   document.getElementById('modalIng').style.display = 'flex';
   if(!ing) document.getElementById('ingNombre').focus();
@@ -559,14 +736,16 @@ function cerrarModalIng() { document.getElementById('modalIng').style.display = 
 function guardarIng() {
   const id = document.getElementById('ingId').value;
   const body = {
-    accion: id ? 'editar' : 'crear',
-    id: id || undefined,
+    accion:         id ? 'editar' : 'crear',
+    id:             id || undefined,
     nombre:         document.getElementById('ingNombre').value.trim(),
     categoria:      document.getElementById('ingCat').value,
     unidad:         document.getElementById('ingUnidad').value.trim(),
-    stock_actual:   parseFloat(document.getElementById('ingStock').value) || 0,
-    stock_minimo:   parseFloat(document.getElementById('ingMinimo').value) || 0,
     costo_unitario: parseFloat(document.getElementById('ingCosto').value) || 0,
+    stock_cariari:  parseFloat(document.getElementById('ingStockCar').value) || 0,
+    stock_guapiles: parseFloat(document.getElementById('ingStockGua').value) || 0,
+    min_cariari:    parseFloat(document.getElementById('ingMinCar').value) || 0,
+    min_guapiles:   parseFloat(document.getElementById('ingMinGua').value) || 0,
   };
   if(!body.nombre || !body.unidad) { alert('Nombre y unidad son obligatorios'); return; }
   fetch('inventario.php', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
@@ -575,7 +754,7 @@ function guardarIng() {
 
 // ── Toggle activo
 function toggleActivo(id, nombre, reactivar) {
-  const msg = reactivar ? `¿Reactivar "${nombre}"?` : `¿Desactivar "${nombre}"? No se eliminará, solo se ocultará del listado principal.`;
+  const msg = reactivar ? `¿Reactivar "${nombre}"?` : `¿Desactivar "${nombre}"? Se ocultará del listado.`;
   if(!confirm(msg)) return;
   fetch('inventario.php', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({accion:'toggle_activo',id}) })
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
@@ -583,8 +762,13 @@ function toggleActivo(id, nombre, reactivar) {
 
 // ── Modal movimiento
 function abrirMov(ing, tipo) {
-  document.getElementById('movId').value  = ing.id;
+  if(SUC_ACTUAL === 'ambas') {
+    alert('Seleccioná Cariari o Guápiles en el sidebar para registrar movimientos.');
+    return;
+  }
+  document.getElementById('movId').value   = ing.id;
   document.getElementById('movTipo').value = tipo;
+  document.getElementById('movSucursal').value = SUC_ACTUAL;
   document.getElementById('movNombre').textContent = ing.nombre;
 
   const actual = parseFloat(ing.stock_actual) || 0;
@@ -621,10 +805,17 @@ function guardarMovimiento() {
   const tipo     = document.getElementById('movTipo').value;
   const esAjuste = tipo === 'ajuste';
   const cant     = parseFloat(esAjuste ? document.getElementById('movAjuste').value : document.getElementById('movCant').value);
-  if(isNaN(cant) || cant < 0) { alert('Ingresa una cantidad válida'); return; }
+  if(isNaN(cant) || cant < 0) { alert('Ingresá una cantidad válida'); return; }
   fetch('inventario.php', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ accion:'movimiento', id:document.getElementById('movId').value, tipo, cantidad:cant, nota:document.getElementById('movNota').value })
+    body: JSON.stringify({
+      accion:'movimiento',
+      id:       document.getElementById('movId').value,
+      tipo,
+      cantidad: cant,
+      sucursal: document.getElementById('movSucursal').value,
+      nota:     document.getElementById('movNota').value
+    })
   }).then(r=>r.json()).then(d => {
     if(d.success) location.reload();
     else alert('Error: ' + d.error);

@@ -499,6 +499,17 @@
       transition: transform var(--t);
     }
     .cart-fab:hover { transform: scale(1.06); }
+
+    .wa-fab {
+      position: fixed; bottom: 24px; right: 96px; z-index: 1200;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: #25d366; color: white;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 8px 24px rgba(37,211,102,.45);
+      transition: transform var(--t);
+    }
+    .wa-fab:hover { transform: scale(1.06); }
+    .wa-fab svg { width: 28px; height: 28px; fill: white; }
     .cart-fab-badge {
       position: absolute; top: -4px; right: -4px;
       background: #e53935; color: white; font-size: 12px; font-weight: 700;
@@ -1193,7 +1204,11 @@
     </div>
   </footer>
 
-  <!-- ===================== CARRITO FLOTANTE ===================== -->
+  <!-- ===================== BOTONES FLOTANTES ===================== -->
+  <a href="https://wa.me/50685756873" target="_blank" class="wa-fab" aria-label="Chatear por WhatsApp">
+    <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.031 0C5.4 0 .001 5.399.001 12.031c0 2.12.554 4.114 1.522 5.842L0 24l6.279-1.474a11.94 11.94 0 0 0 5.752 1.463h.005c6.63 0 12.029-5.399 12.029-12.031 0-3.213-1.252-6.233-3.526-8.508A11.955 11.955 0 0 0 12.031 0zm0 22.021h-.004a9.966 9.966 0 0 1-5.096-1.399l-.366-.217-3.782.995 1.014-3.686-.239-.379a9.965 9.965 0 0 1-1.533-5.304c0-5.514 4.487-10.001 10.005-10.001 2.671 0 5.181 1.041 7.072 2.933a9.937 9.937 0 0 1 2.929 7.075c0 5.517-4.487 10.001-10.005 10.001z"/></svg>
+  </a>
+
   <button class="cart-fab" onclick="abrirCarrito()" aria-label="Ver carrito">
     🛒
     <span class="cart-fab-badge" id="cartBadge" style="display:none">0</span>
@@ -1538,28 +1553,34 @@
         return;
       }
 
-      let msg = '🍕 *Nuevo pedido - Pizza Yaja*\n\n';
-      msg += '📍 Sucursal: ' + (sedeSeleccionada === 'cariari' ? 'Cariari' : 'Guápiles') + '\n';
-      msg += '🛵 Modalidad: ' + (modalidadSeleccionada === 'domicilio' ? 'Entrega a domicilio' : 'Recoger en el local') + '\n';
-      if (modalidadSeleccionada === 'domicilio') msg += '📌 Dirección: ' + direccion + '\n';
-      msg += '\n*Pedido:*\n';
+      const LINEA = '- - - - - - - - - - - -';
+      let msg = '🍕 *PEDIDO · PIZZA YAJA*\n' + LINEA + '\n\n';
+      msg += '📍 *Sucursal:* ' + (sedeSeleccionada === 'cariari' ? 'Cariari' : 'Guápiles') + '\n';
+      msg += '🛵 *Modalidad:* ' + (modalidadSeleccionada === 'domicilio' ? 'Entrega a domicilio' : 'Recoger en el local') + '\n';
+      if (modalidadSeleccionada === 'domicilio') msg += '📌 *Dirección:* ' + direccion + '\n';
+
+      msg += '\n*Tu pedido:*\n';
       carrito.forEach(item => {
-        msg += '- ' + item.cantidad + 'x ' + item.nombre + (item.nota ? ' (' + item.nota + ')' : '') + ' - ₡' + (item.precio * item.cantidad).toLocaleString('es-CR') + '\n';
+        msg += '• ' + item.cantidad + 'x ' + item.nombre + (item.nota ? ' (' + item.nota + ')' : '') + '\n   ₡' + (item.precio * item.cantidad).toLocaleString('es-CR') + '\n';
       });
 
       let total = totalCarrito();
+      msg += '\n' + LINEA + '\n';
       if (modalidadSeleccionada === 'domicilio') {
         if (envioConfirmarWhatsapp) {
-          msg += '\n🛵 Envío: a confirmar según dirección\n';
+          msg += '🛵 Envío: a confirmar según dirección\n';
         } else {
-          msg += '\n🛵 Envío: ₡' + costoEnvioActual.toLocaleString('es-CR') + '\n';
+          msg += '🛵 Envío: ₡' + costoEnvioActual.toLocaleString('es-CR') + '\n';
           total += costoEnvioActual;
         }
       }
+      msg += '💰 *TOTAL: ₡' + total.toLocaleString('es-CR') + (modalidadSeleccionada === 'domicilio' && envioConfirmarWhatsapp ? ' + envío*\n' : '*\n');
+      msg += LINEA + '\n\n';
 
-      msg += '\n💰 *Total: ₡' + total.toLocaleString('es-CR') + (modalidadSeleccionada === 'domicilio' && envioConfirmarWhatsapp ? ' + envío*\n\n' : '*\n\n');
-      msg += '👤 Cliente: ' + nombre + '\n📱 Teléfono: ' + telefono + '\n';
-      if (notas) msg += '📝 Notas: ' + notas + '\n';
+      msg += '👤 *Cliente:* ' + nombre + '\n';
+      msg += '📱 *Teléfono:* ' + telefono + '\n';
+      if (notas) msg += '📝 *Notas:* ' + notas + '\n';
+      msg += '\n¡Gracias por tu pedido! 🍕';
 
       const numero = WA_NUMEROS[sedeSeleccionada];
       window.open('https://wa.me/' + numero + '?text=' + encodeURIComponent(msg), '_blank');

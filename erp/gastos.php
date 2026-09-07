@@ -6,6 +6,13 @@ if(!isset($_SESSION['usuario_id']) || $_SESSION['rol'] != 'admin') {
 require_once '../config.php';
 $conn = getConnection();
 
+// Sucursal activa
+if(isset($_GET['suc']) && in_array($_GET['suc'], ['cariari','guapiles','ambas'])) {
+    $_SESSION['erp_sucursal'] = $_GET['suc'];
+}
+$suc_filtro = $_SESSION['erp_sucursal'] ?? 'ambas';
+$SUC  = $suc_filtro !== 'ambas' ? "AND sucursal = '{$suc_filtro}'" : '';
+
 // Auto-crear tabla
 $conn->exec("
   CREATE TABLE IF NOT EXISTS gastos (
@@ -14,11 +21,13 @@ $conn->exec("
     categoria   VARCHAR(50)  NOT NULL DEFAULT 'otros',
     monto       DECIMAL(10,2) NOT NULL,
     fecha       DATE NOT NULL,
+    sucursal    VARCHAR(20)  NOT NULL DEFAULT 'cariari',
     nota        TEXT,
     usuario_id  INT,
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 ");
+try { $conn->exec("ALTER TABLE gastos ADD COLUMN sucursal VARCHAR(20) NOT NULL DEFAULT 'cariari' AFTER fecha"); } catch(PDOException $e) {}
 
 // ── AJAX ──────────────────────────────────────────────────────────────────────
 if($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -27,8 +36,8 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $d['accion'] ?? '';
     try {
         if($accion === 'crear') {
-            $stmt = $conn->prepare("INSERT INTO gastos (concepto,categoria,monto,fecha,nota,usuario_id) VALUES (?,?,?,?,?,?)");
-            $stmt->execute([$d['concepto'], $d['categoria'], $d['monto'], $d['fecha'], $d['nota'] ?? null, $_SESSION['usuario_id']]);
+            $stmt = $conn->prepare("INSERT INTO gastos (concepto,categoria,monto,fecha,sucursal,nota,usuario_id) VALUES (?,?,?,?,?,?,?)");
+            $stmt->execute([$d['concepto'], $d['categoria'], $d['monto'], $d['fecha'], $d['sucursal']??'cariari', $d['nota'] ?? null, $_SESSION['usuario_id']]);
             echo json_encode(['success'=>true]);
         } elseif($accion === 'editar') {
             $stmt = $conn->prepare("UPDATE gastos SET concepto=?,categoria=?,monto=?,fecha=?,nota=? WHERE id=?");
@@ -52,12 +61,12 @@ $desde = date('Y-m-d', strtotime("-{$dias} day"));
 $DONE  = "estado = 'completado'";
 
 // Gastos del período
-$gastos = $conn->prepare("SELECT * FROM gastos WHERE fecha >= ? ORDER BY fecha DESC");
+$gastos = $conn->prepare("SELECT * FROM gastos WHERE fecha >= ? {$SUC} ORDER BY fecha DESC");
 $gastos->execute([$desde]);
 $gastosList = $gastos->fetchAll();
 
 // Totales por categoría
-$porCat = $conn->prepare("SELECT categoria, SUM(monto) AS total FROM gastos WHERE fecha >= ? GROUP BY categoria ORDER BY total DESC");
+$porCat = $conn->prepare("SELECT categoria, SUM(monto) AS total FROM gastos WHERE fecha >= ? {$SUC} GROUP BY categoria ORDER BY total DESC");
 $porCat->execute([$desde]);
 $porCatList = $porCat->fetchAll();
 
@@ -65,7 +74,8 @@ $porCatList = $porCat->fetchAll();
 $totGastos = array_sum(array_column($gastosList, 'monto'));
 
 // Ventas del mismo período (para comparar)
-$venQ = $conn->prepare("SELECT COALESCE(SUM(total),0) AS v FROM ordenes WHERE fecha_creacion >= ? AND {$DONE}");
+$SUCV = $suc_filtro !== 'ambas' ? "AND sucursal = '{$suc_filtro}'" : '';
+$venQ = $conn->prepare("SELECT COALESCE(SUM(total),0) AS v FROM ordenes WHERE fecha_creacion >= ? AND {$DONE} {$SUCV}");
 $venQ->execute([$desde]);
 $totVentas = (float)$venQ->fetch()['v'];
 
@@ -90,7 +100,7 @@ $catMap = array_combine($CATS, $catColors);
 <div class="erp-main">
   <div class="erp-topbar">
     <button class="erp-hbg" onclick="erpHbg()">☰</button>
-    <span class="erp-pg-title">💸 Gastos</span>
+    <span class="erp-pg-title">💸 Gastos<?= $suc_filtro !== 'ambas' ? ' — '.(['cariari'=>'Cariari','guapiles'=>'Guápiles'][$suc_filtro]) : '' ?></span>
     <div class="erp-topbar-right">
       <?php foreach(['7'=>'7 días','30'=>'30 días','90'=>'90 días'] as $v=>$l): ?>
         <a href="?dias=<?= $v ?>" class="eb <?= $dias==$v?'ora':'gry' ?>" style="padding:5px 12px;font-size:12px"><?= $l ?></a>
@@ -170,13 +180,18 @@ $catMap = array_combine($CATS, $catColors);
       <div class="ec-head">Registro de gastos</div>
       <div class="ec-body np">
         <table class="et">
-          <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Monto</th><th>Nota</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><?php if($suc_filtro==='ambas'): ?><th>Sucursal</th><?php endif; ?><th>Monto</th><th>Nota</th><th>Acciones</th></tr></thead>
           <tbody>
-          <?php foreach($gastosList as $g): ?>
+          <?php foreach($gastosList as $g):
+            $scls = ($g['sucursal']??'') === 'guapiles' ? 'bdg-blu' : 'bdg-org';
+          ?>
             <tr>
               <td style="white-space:nowrap;color:#888"><?= date('d/m/Y', strtotime($g['fecha'])) ?></td>
               <td><strong><?= htmlspecialchars($g['concepto']) ?></strong></td>
               <td><span class="bdg <?= $catMap[$g['categoria']] ?? 'bdg-gry' ?>"><?= ucfirst($g['categoria']) ?></span></td>
+              <?php if($suc_filtro==='ambas'): ?>
+              <td><span class="bdg <?= $scls ?>"><?= ucfirst($g['sucursal']??'—') ?></span></td>
+              <?php endif; ?>
               <td style="font-weight:700;color:var(--red)">₡<?= number_format($g['monto'],0) ?></td>
               <td style="color:#888;font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                 <?= htmlspecialchars($g['nota'] ?? '—') ?>
@@ -209,6 +224,16 @@ $catMap = array_combine($CATS, $catColors);
     </div>
     <div style="padding:20px">
       <input type="hidden" id="gId">
+      <input type="hidden" id="gSucursal" value="<?= htmlspecialchars($suc_filtro === 'ambas' ? 'cariari' : $suc_filtro) ?>">
+      <?php if($suc_filtro === 'ambas'): ?>
+      <div class="ef-group">
+        <label class="ef-label">Sucursal</label>
+        <select class="ef" id="gSucSelect" onchange="document.getElementById('gSucursal').value=this.value">
+          <option value="cariari">📍 Cariari</option>
+          <option value="guapiles">📍 Guápiles</option>
+        </select>
+      </div>
+      <?php endif; ?>
       <div class="ef-group">
         <label class="ef-label">Concepto</label>
         <input class="ef" id="gConcepto" placeholder="Ej: Compra de harina, Pago de luz">
@@ -266,6 +291,7 @@ function guardar() {
     categoria: document.getElementById('gCat').value,
     monto:     parseFloat(document.getElementById('gMonto').value),
     fecha:     document.getElementById('gFecha').value,
+    sucursal:  document.getElementById('gSucursal').value,
     nota:      document.getElementById('gNota').value.trim(),
   };
   if(!body.concepto || !body.monto || !body.fecha) { alert('Concepto, monto y fecha son obligatorios'); return; }

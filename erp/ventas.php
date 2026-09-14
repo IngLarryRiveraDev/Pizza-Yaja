@@ -101,7 +101,7 @@ $mData   = array_column($metodos, 'total');
 
   <div class="erp-content">
     <!-- KPI summary -->
-    <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi-row" style="grid-template-columns:repeat(2,1fr)">
       <div class="kpi ora">
         <div class="kpi-icon">💰</div>
         <div class="kpi-lbl">Total ventas</div>
@@ -113,12 +113,6 @@ $mData   = array_column($metodos, 'total');
         <div class="kpi-lbl">Órdenes completadas</div>
         <div class="kpi-val"><?= $totales['o'] ?></div>
         <div class="kpi-sub">últimos <?= $dias ?> días</div>
-      </div>
-      <div class="kpi blu">
-        <div class="kpi-icon">🎯</div>
-        <div class="kpi-lbl">Ticket promedio</div>
-        <div class="kpi-val">₡<?= $totales['o']>0 ? number_format($totales['v']/$totales['o'],0) : 0 ?></div>
-        <div class="kpi-sub">por orden</div>
       </div>
     </div>
 

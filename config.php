@@ -23,3 +23,23 @@ function getConnection() {
     $conn->exec("SET time_zone = '-06:00'");
     return $conn;
 }
+
+// Llave fuera de la DB: PASS_KEY si está configurada, si no se deriva de las credenciales de la DB
+function passKey() {
+    $k = defined('PASS_KEY') ? PASS_KEY : (getenv('PASS_KEY') ?: DB_USER . '|' . DB_PASS . '|' . DB_NAME . '|pizza-yaja');
+    return hash('sha256', $k, true);
+}
+
+function passCifrar($plano) {
+    $iv = random_bytes(16);
+    $cif = openssl_encrypt($plano, 'AES-256-CBC', passKey(), OPENSSL_RAW_DATA, $iv);
+    return base64_encode($iv . $cif);
+}
+
+function passDescifrar($guardado) {
+    if(!$guardado) return null;
+    $raw = base64_decode($guardado, true);
+    if($raw === false || strlen($raw) < 17) return null;
+    $plano = openssl_decrypt(substr($raw, 16), 'AES-256-CBC', passKey(), OPENSSL_RAW_DATA, substr($raw, 0, 16));
+    return $plano === false ? null : $plano;
+}

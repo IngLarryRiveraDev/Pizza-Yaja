@@ -50,16 +50,18 @@ try {
 
     // Guardar en log si tenía productos
     if($tieneProductos) {
+        try { $conn->exec("ALTER TABLE log_eliminaciones ADD COLUMN sucursal VARCHAR(20) NULL"); } catch(PDOException $e) {}
         $conn->prepare("
-            INSERT INTO log_eliminaciones (orden_id, numero_orden, nombre_cliente, total, motivo, eliminado_por)
-            VALUES (?,?,?,?,?,?)
+            INSERT INTO log_eliminaciones (orden_id, numero_orden, nombre_cliente, total, motivo, eliminado_por, sucursal)
+            VALUES (?,?,?,?,?,?,?)
         ")->execute([
             $orden_id,
             $orden['numero_orden'],
             $orden['nombre_cliente'],
             $orden['total'],
             $motivo,
-            $_SESSION['nombre']
+            $_SESSION['nombre'],
+            $orden['sucursal'] ?? null
         ]);
     }
 

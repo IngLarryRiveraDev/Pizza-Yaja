@@ -43,8 +43,9 @@ try {
             exit;
         }
 
-        $stmt = $conn->prepare("INSERT INTO usuarios (nombre, usuario, contrasena, rol, sucursal) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$nombre, $usuario, password_hash($password, PASSWORD_DEFAULT), $rol, $sucursal]);
+        try { $conn->exec("ALTER TABLE usuarios ADD COLUMN contrasena_visible TEXT NULL"); } catch(PDOException $e) {}
+        $stmt = $conn->prepare("INSERT INTO usuarios (nombre, usuario, contrasena, contrasena_visible, rol, sucursal) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$nombre, $usuario, password_hash($password, PASSWORD_DEFAULT), passCifrar($password), $rol, $sucursal]);
         echo json_encode(['success' => true]);
 
     } elseif($action === 'eliminar') {

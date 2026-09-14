@@ -5,6 +5,7 @@ if(!isset($_SESSION['usuario_id']) || $_SESSION['rol'] != 'admin') {
 }
 require_once '../config.php';
 $conn = getConnection();
+try { $conn->exec("ALTER TABLE usuarios ADD COLUMN contrasena_visible TEXT NULL"); } catch(PDOException $e) {}
 
 if($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
@@ -16,19 +17,24 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ck->execute([$d['usuario']]);
             if($ck->fetch()) { echo json_encode(['success'=>false,'error'=>'El usuario ya existe']); exit; }
             $sucursal = in_array($d['sucursal'] ?? '', ['cariari','guapiles','ambas']) ? $d['sucursal'] : 'cariari';
-            $stmt = $conn->prepare("INSERT INTO usuarios (nombre, usuario, contrasena, rol, sucursal) VALUES (?,?,?,?,?)");
-            $stmt->execute([$d['nombre'], $d['usuario'], password_hash($d['contrasena'], PASSWORD_DEFAULT), $d['rol'], $sucursal]);
+            $stmt = $conn->prepare("INSERT INTO usuarios (nombre, usuario, contrasena, contrasena_visible, rol, sucursal) VALUES (?,?,?,?,?,?)");
+            $stmt->execute([$d['nombre'], $d['usuario'], password_hash($d['contrasena'], PASSWORD_DEFAULT), passCifrar($d['contrasena']), $d['rol'], $sucursal]);
             echo json_encode(['success'=>true]);
         } elseif($accion === 'editar') {
             $sucursal = in_array($d['sucursal'] ?? '', ['cariari','guapiles','ambas']) ? $d['sucursal'] : 'cariari';
             if(!empty($d['contrasena'])) {
-                $stmt = $conn->prepare("UPDATE usuarios SET nombre=?, usuario=?, contrasena=?, rol=?, sucursal=? WHERE id=?");
-                $stmt->execute([$d['nombre'], $d['usuario'], password_hash($d['contrasena'], PASSWORD_DEFAULT), $d['rol'], $sucursal, $d['id']]);
+                $stmt = $conn->prepare("UPDATE usuarios SET nombre=?, usuario=?, contrasena=?, contrasena_visible=?, rol=?, sucursal=? WHERE id=?");
+                $stmt->execute([$d['nombre'], $d['usuario'], password_hash($d['contrasena'], PASSWORD_DEFAULT), passCifrar($d['contrasena']), $d['rol'], $sucursal, $d['id']]);
             } else {
                 $stmt = $conn->prepare("UPDATE usuarios SET nombre=?, usuario=?, rol=?, sucursal=? WHERE id=?");
                 $stmt->execute([$d['nombre'], $d['usuario'], $d['rol'], $sucursal, $d['id']]);
             }
             echo json_encode(['success'=>true]);
+        } elseif($accion === 'ver_pass') {
+            $stmt = $conn->prepare("SELECT contrasena_visible FROM usuarios WHERE id=?");
+            $stmt->execute([(int)$d['id']]);
+            $plano = passDescifrar($stmt->fetchColumn());
+            echo json_encode(['success'=>true, 'pass'=>$plano]);
         } elseif($accion === 'eliminar') {
             if((int)$d['id'] === (int)$_SESSION['usuario_id']) {
                 echo json_encode(['success'=>false,'error'=>'No puedes eliminarte a ti mismo']); exit;
@@ -72,12 +78,16 @@ $sucursalLabel = ['cariari'=>'Cariari','guapiles'=>'Guapiles','ambas'=>'Ambas'];
       <div class="ec-head">Usuarios del sistema</div>
       <div class="ec-body np">
         <table class="et">
-          <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Sucursal</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>Usuario</th><th>Contraseña</th><th>Rol</th><th>Sucursal</th><th>Acciones</th></tr></thead>
           <tbody>
           <?php foreach($usuarios as $u): ?>
             <tr>
               <td><strong><?= htmlspecialchars($u['nombre']) ?></strong></td>
               <td style="color:#888"><?= htmlspecialchars($u['usuario']) ?></td>
+              <td style="white-space:nowrap">
+                <span id="pass-<?= $u['id'] ?>" style="font-family:monospace;color:#888">••••••</span>
+                <button class="eb gry" style="padding:2px 8px;font-size:12px;margin-left:4px" onclick="verPass(<?= $u['id'] ?>, this)" title="Ver contraseña">👁</button>
+              </td>
               <td><span class="bdg <?= $rolBadge[$u['rol']] ?? 'bdg-gry' ?>"><?= $roles[$u['rol']] ?? $u['rol'] ?></span></td>
               <td><?= htmlspecialchars($sucursalLabel[$u['sucursal']] ?? $u['sucursal']) ?></td>
               <td style="display:flex;gap:6px">
@@ -176,6 +186,28 @@ function guardar() {
   }).then(r => r.json()).then(d => {
     if(d.success) location.reload();
     else alert('Error: ' + d.error);
+  });
+}
+
+function verPass(id, btn) {
+  const span = document.getElementById('pass-' + id);
+  if(span.dataset.visible === '1') {
+    span.textContent = '••••••'; span.style.color = '#888'; span.dataset.visible = ''; btn.textContent = '👁';
+    return;
+  }
+  fetch('usuarios.php', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({accion:'ver_pass', id})
+  }).then(r => r.json()).then(d => {
+    if(!d.success) { alert('Error: ' + d.error); return; }
+    if(d.pass === null) {
+      span.textContent = 'No disponible — cambiala una vez';
+      span.style.color = '#e65100';
+    } else {
+      span.textContent = d.pass;
+      span.style.color = 'var(--text)';
+    }
+    span.dataset.visible = '1'; btn.textContent = '🙈';
   });
 }
 

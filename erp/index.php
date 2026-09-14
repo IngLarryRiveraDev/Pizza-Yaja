@@ -26,9 +26,6 @@ $kOrd = $conn->prepare("SELECT COUNT(*) AS c FROM ordenes WHERE DATE(fecha_creac
 $kOrd->execute([$hoy]);  $oHoy  = (int)$kOrd->fetch()['c'];
 $kOrd->execute([$ayer]); $oAyer = (int)$kOrd->fetch()['c'];
 
-// ── KPI: Ticket promedio hoy
-$ticketHoy = $oHoy > 0 ? $vHoy / $oHoy : 0;
-
 // ── KPI: Órdenes activas ahora (pendiente + en_cocina)
 $kAct = $conn->query("SELECT COUNT(*) AS c FROM ordenes WHERE estado IN ('pendiente','en_cocina') {$SUCB}")->fetch()['c'];
 
@@ -127,12 +124,6 @@ $mpData   = json_encode(array_column($metodos, 'c'));
         <div class="kpi-lbl">Órdenes hoy</div>
         <div class="kpi-val"><?= $oHoy ?></div>
         <div class="kpi-sub">vs ayer <?= trend($oHoy, $oAyer) ?></div>
-      </div>
-      <div class="kpi blu">
-        <div class="kpi-icon">🎯</div>
-        <div class="kpi-lbl">Ticket promedio</div>
-        <div class="kpi-val"><?= nfCRC($ticketHoy) ?></div>
-        <div class="kpi-sub">órdenes completadas</div>
       </div>
       <div class="kpi pur">
         <div class="kpi-icon">🔥</div>

@@ -36,6 +36,17 @@ try {
     ");
 } catch(PDOException $e) {}
 
+// Verificar órdenes activas pendientes
+$ordenes_activas = 0;
+try {
+    $chkOrd = $conn->prepare("
+        SELECT COUNT(*) FROM ordenes
+        WHERE sucursal = ? AND estado IN ('pendiente','en_cocina','listo','pagado')
+    ");
+    $chkOrd->execute([$sucursal]);
+    $ordenes_activas = (int)$chkOrd->fetchColumn();
+} catch(PDOException $e) {}
+
 // Verificar si ya envió arqueo hoy
 try {
     $chk = $conn->prepare("SELECT id FROM arqueos WHERE usuario_id = ? AND fecha_cierre = ?");
@@ -46,7 +57,7 @@ try {
 } catch(PDOException $e) {}
 
 // Procesar envío
-if($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
+if($_SERVER['REQUEST_METHOD'] === 'POST' && !$error && $ordenes_activas === 0) {
     $fisico_efectivo = (float)str_replace(',', '.', $_POST['efectivo'] ?? 0);
     $fisico_sinpe    = (float)str_replace(',', '.', $_POST['sinpe']    ?? 0);
     $fisico_tarjeta  = (float)str_replace(',', '.', $_POST['tarjeta']  ?? 0);
@@ -176,7 +187,17 @@ $suc_nombre = ['cariari'=>'Cariari','guapiles'=>'Guapiles'][$sucursal] ?? ucfirs
         <span class="sucursal-badge">📍 <?php echo $suc_nombre; ?></span>
     </div>
 
-    <?php if($enviado): ?>
+    <?php if($ordenes_activas > 0 && !$enviado): ?>
+        <div class="alerta" style="border-color:#e53935">
+            <div class="icon">🚫</div>
+            <p><strong>No podés cerrar con órdenes activas.</strong><br>
+            Quedan <strong><?= $ordenes_activas ?></strong> orden<?= $ordenes_activas > 1 ? 'es' : '' ?> sin completar o eliminar.</p>
+        </div>
+        <a href="ordenes_activas.php" class="btn-enviar" style="background:#e53935;display:block;text-align:center;text-decoration:none;margin-top:8px;">
+            Ver órdenes activas
+        </a>
+
+    <?php elseif($enviado): ?>
         <div class="estado-ok">
             <div class="icon">✅</div>
             <h2>Cierre enviado</h2>

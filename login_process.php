@@ -7,6 +7,7 @@ require_once 'migrations.php';
 try {
     $conn = getConnection();
     setupSucursalColumns($conn);
+    setupProductosColumns($conn);
 
     $usuario   = $_POST['usuario']    ?? '';
     $contrasena = $_POST['contrasena'] ?? '';

@@ -77,11 +77,11 @@ try {
     $stmt->execute([$categoria_id]);
     $combos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $stmt = $conn->query("SELECT id, nombre FROM productos WHERE categoria_id = 2 AND activo = 1 ORDER BY nombre ASC");
+    $stmt = $conn->query("SELECT id, nombre FROM productos WHERE categoria_id = 2 AND activo = 1 AND disponible = 1 ORDER BY nombre ASC");
     $sabores = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Sabores de batidos para las promos 2x1
-    $stmt = $conn->query("SELECT categoria_id, nombre FROM productos WHERE categoria_id IN (7, 8) AND activo = 1 ORDER BY nombre ASC");
+    $stmt = $conn->query("SELECT categoria_id, nombre FROM productos WHERE categoria_id IN (7, 8) AND activo = 1 AND disponible = 1 ORDER BY nombre ASC");
     $saboresBatido = [];
     foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $s) {
         $saboresBatido[$s['categoria_id']][] = $s['nombre'];

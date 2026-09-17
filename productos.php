@@ -39,7 +39,7 @@ try {
     if($es_bebida || $es_cafeteria) {
         $cats = $es_bebida ? [$categoria_id] : [7, 8];
         $ph   = implode(',', array_fill(0, count($cats), '?'));
-        $stmt = $conn->prepare("SELECT id, categoria_id, nombre, precio FROM productos WHERE categoria_id IN ($ph) AND activo = 1 ORDER BY nombre ASC");
+        $stmt = $conn->prepare("SELECT id, categoria_id, nombre, precio FROM productos WHERE categoria_id IN ($ph) AND activo = 1 AND disponible = 1 ORDER BY nombre ASC");
         $stmt->execute($cats);
         foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $b) {
             $bebidas_por_cat[$b['categoria_id']][] = $b;
@@ -197,7 +197,7 @@ try {
         <!-- Productos simples -->
         <div class="productos-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; max-width: 900px; margin: 0 auto;">
             <?php
-            $stmt = $conn->prepare("SELECT * FROM productos WHERE categoria_id = ? AND activo = 1 ORDER BY nombre ASC");
+            $stmt = $conn->prepare("SELECT * FROM productos WHERE categoria_id = ? AND activo = 1 AND disponible = 1 ORDER BY nombre ASC");
             $stmt->execute([$categoria_id]);
             $productos_simples = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

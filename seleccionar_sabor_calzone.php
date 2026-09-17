@@ -19,7 +19,7 @@ try {
     $conn = getConnection();
     
     // Obtener sabores de pizza (categorÃ­a 2)
-    $stmt = $conn->query("SELECT * FROM productos WHERE categoria_id = 2 AND activo = 1 ORDER BY nombre");
+    $stmt = $conn->query("SELECT * FROM productos WHERE categoria_id = 2 AND activo = 1 AND disponible = 1 ORDER BY nombre");
     $sabores = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
 } catch(PDOException $e) {

@@ -197,7 +197,7 @@ try {
         <!-- Productos simples -->
         <div class="productos-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; max-width: 900px; margin: 0 auto;">
             <?php
-            $stmt = $conn->prepare("SELECT * FROM productos WHERE categoria_id = ? AND activo = 1 ORDER BY precio ASC, nombre ASC");
+            $stmt = $conn->prepare("SELECT * FROM productos WHERE categoria_id = ? AND activo = 1 ORDER BY nombre ASC");
             $stmt->execute([$categoria_id]);
             $productos_simples = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

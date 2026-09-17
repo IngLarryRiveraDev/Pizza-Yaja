@@ -25,18 +25,30 @@ try {
     // Categorías de bebida (muestran modal con dropdown de sabores)
     $es_bebida = in_array($categoria_id, [7, 8]);
 
+    // Cafetería incluye los batidos: se piden desde acá
+    $es_cafeteria = ($categoria_id == 12);
+
     if($es_pizza) {
         $tabla_tamanos = ($categoria_id == 1) ? 'tamanos_pizza_2x1' : 'tamanos_pizza_individual';
         $stmt = $conn->query("SELECT * FROM $tabla_tamanos ORDER BY orden ASC");
         $tamanos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    if($es_bebida) {
-        $stmt = $conn->prepare("SELECT * FROM productos WHERE categoria_id = ? AND activo = 1 ORDER BY nombre ASC");
-        $stmt->execute([$categoria_id]);
-        $sabores_bebida = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Sabores de batidos, agrupados por categoría (7 = agua, 8 = leche)
+    $bebidas_por_cat = [];
+    if($es_bebida || $es_cafeteria) {
+        $cats = $es_bebida ? [$categoria_id] : [7, 8];
+        $ph   = implode(',', array_fill(0, count($cats), '?'));
+        $stmt = $conn->prepare("SELECT id, categoria_id, nombre, precio FROM productos WHERE categoria_id IN ($ph) AND activo = 1 ORDER BY nombre ASC");
+        $stmt->execute($cats);
+        foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $b) {
+            $bebidas_por_cat[$b['categoria_id']][] = $b;
+        }
     }
-    
+    $sabores_bebida = $es_bebida ? ($bebidas_por_cat[$categoria_id] ?? []) : [];
+
+    $bebida_nombres = [7 => 'Batido en Agua', 8 => 'Batido en Leche'];
+
 } catch(PDOException $e) {
     die("Error: " . $e->getMessage());
 }
@@ -158,6 +170,30 @@ try {
         </div>
 
     <?php else: ?>
+        <?php if($es_cafeteria): ?>
+        <!-- Batidos: abren el modal de sabores -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; max-width: 900px; margin: 0 auto 12px;">
+            <?php foreach([7, 8] as $catBebida):
+                $sabores = $bebidas_por_cat[$catBebida] ?? [];
+                if(empty($sabores)) continue;
+                $desde = min(array_column($sabores, 'precio'));
+            ?>
+                <div class="producto-card" style="background:#fff; border:3px solid #2196f3; border-radius:10px; padding:15px; cursor:pointer;"
+                     onclick="abrirModalBebida(<?php echo $catBebida; ?>)">
+                    <div style="font-weight:bold; margin-bottom:8px;">
+                        🥤 <?php echo $bebida_nombres[$catBebida]; ?>
+                    </div>
+                    <div style="color:#2196f3; font-size:20px; font-weight:bold;">
+                        desde ₡<?php echo number_format($desde, 0); ?>
+                    </div>
+                    <div style="color:#888; font-size:13px; margin-top:4px;">
+                        <?php echo count($sabores); ?> sabores
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
         <!-- Productos simples -->
         <div class="productos-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; max-width: 900px; margin: 0 auto;">
             <?php
@@ -321,17 +357,12 @@ try {
     <!-- Modal para bebidas (batidos y refrescos) -->
     <div id="modal_bebida" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; overflow-y: auto;">
         <div style="max-width: 500px; margin: 20px auto; background: white; border-radius: 10px; padding: 15px;">
-            <h2 style="color: #ff9800; margin-bottom: 12px; font-size: 18px;">🥤 <?php echo htmlspecialchars($categoria['nombre'] ?? ''); ?></h2>
+            <h2 id="bebida_titulo" style="color: #ff9800; margin-bottom: 12px; font-size: 18px;"></h2>
 
             <div style="margin-bottom: 12px;">
                 <label style="display: block; margin-bottom: 6px; font-weight: bold; font-size: 14px;">Sabor:</label>
                 <select id="bebida_sabor" onchange="actualizarPrecioBebida()" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 15px;">
                     <option value="">-- Seleccioná un sabor --</option>
-                    <?php foreach($sabores_bebida ?? [] as $s): ?>
-                        <option value="<?php echo $s['id']; ?>" data-precio="<?php echo $s['precio']; ?>">
-                            <?php echo htmlspecialchars($s['nombre']); ?> — ₡<?php echo number_format($s['precio'], 0); ?>
-                        </option>
-                    <?php endforeach; ?>
                 </select>
             </div>
 
@@ -363,8 +394,26 @@ try {
     </div>
 
     <script>
-    function abrirModalBebida() {
-        document.getElementById('bebida_sabor').value = '';
+    const bebidasData    = <?php echo json_encode($bebidas_por_cat); ?>;
+    const bebidaNombres  = <?php echo json_encode($bebida_nombres); ?>;
+    let catBebidaActual  = <?php echo $es_bebida ? (int)$categoria_id : 'null'; ?>;
+
+    function abrirModalBebida(catId) {
+        if(catId) catBebidaActual = catId;
+        const sabores = bebidasData[catBebidaActual] || [];
+
+        document.getElementById('bebida_titulo').textContent = '🥤 ' + (bebidaNombres[catBebidaActual] || '');
+
+        const select = document.getElementById('bebida_sabor');
+        select.innerHTML = '<option value="">-- Seleccioná un sabor --</option>';
+        sabores.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.dataset.precio = s.precio;
+            opt.textContent = s.nombre + ' — ₡' + parseInt(s.precio).toLocaleString('es-CR');
+            select.appendChild(opt);
+        });
+
         document.getElementById('bebida_cantidad').value = 1;
         document.getElementById('bebida_comentarios').value = '';
         document.getElementById('bebida_precio_total').textContent = 'Total: ₡0';
@@ -399,8 +448,7 @@ try {
         const cantidad = parseInt(document.getElementById('bebida_cantidad').value) || 1;
         const comentarios = document.getElementById('bebida_comentarios').value;
 
-        const catId = <?php echo $categoria_id; ?>;
-        const prefijo = catId == 7 ? 'Batido de ' : catId == 8 ? 'Batido (Leche) de ' : catId == 9 ? 'Refresco de ' : '';
+        const prefijo = catBebidaActual == 7 ? 'Batido de ' : catBebidaActual == 8 ? 'Batido (Leche) de ' : '';
         const sabor = selected.text.split(' — ')[0];
 
         fetch('agregar_producto_simple.php', {

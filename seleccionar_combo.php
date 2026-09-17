@@ -28,10 +28,14 @@ function setupCombosTable($conn) {
             pide_calzone       TINYINT(1) NOT NULL DEFAULT 0,
             pide_bebida        TINYINT(1) NOT NULL DEFAULT 0,
             precio_con_leche   INT DEFAULT NULL,
+            sabor_batido_cat   INT DEFAULT NULL,
+            sabor_batido_qty   INT NOT NULL DEFAULT 1,
             activo             TINYINT(1) NOT NULL DEFAULT 1,
             orden              INT NOT NULL DEFAULT 0
         )
     ");
+    try { $conn->exec("ALTER TABLE combos ADD COLUMN sabor_batido_cat INT DEFAULT NULL"); } catch(PDOException $e) {}
+    try { $conn->exec("ALTER TABLE combos ADD COLUMN sabor_batido_qty INT NOT NULL DEFAULT 1"); } catch(PDOException $e) {}
     $count = $conn->query("SELECT COUNT(*) FROM combos")->fetchColumn();
     if($count == 0) {
         $conn->exec("
@@ -45,6 +49,24 @@ function setupCombosTable($conn) {
             (4, 'Cajita Infantil',   'Mini pizza + Refresco 255ml + Postre + Juguete sorpresa',   4200, 0, 0, 0, 0, NULL, 4)
         ");
     }
+
+    // Promociones (categoría 11) — se agregan solo si faltan
+    $promos = [
+        ['2 Copos',                '2 copos',                        2000, null, 1, 1],
+        ['Batidos en Agua 2x1',    'Llevate 2 batidos en agua',      1600, 7,    2, 2],
+        ['Batidos en Leche 2x1',   'Llevate 2 batidos en leche',     2300, 8,    2, 3],
+        ['3 Calzones',             '3 calzones',                     2500, null, 1, 4],
+        ['5 Calzones',             '5 calzones',                     3500, null, 1, 5],
+    ];
+    $existe = $conn->prepare("SELECT id FROM combos WHERE categoria_id = 11 AND nombre = ?");
+    $crear  = $conn->prepare("
+        INSERT INTO combos (categoria_id, nombre, descripcion, precio, sabor_batido_cat, sabor_batido_qty, orden)
+        VALUES (11, ?, ?, ?, ?, ?, ?)
+    ");
+    foreach($promos as $p) {
+        $existe->execute([$p[0]]);
+        if(!$existe->fetch()) $crear->execute($p);
+    }
 }
 
 try {
@@ -57,6 +79,13 @@ try {
 
     $stmt = $conn->query("SELECT id, nombre FROM productos WHERE categoria_id = 2 AND activo = 1 ORDER BY nombre ASC");
     $sabores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Sabores de batidos para las promos 2x1
+    $stmt = $conn->query("SELECT categoria_id, nombre FROM productos WHERE categoria_id IN (7, 8) AND activo = 1 ORDER BY nombre ASC");
+    $saboresBatido = [];
+    foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $s) {
+        $saboresBatido[$s['categoria_id']][] = $s['nombre'];
+    }
 
 } catch(PDOException $e) {
     die("Error: " . $e->getMessage());
@@ -200,6 +229,13 @@ $titulo = match($categoria_id) {
             <hr class="divider">
         </div>
 
+        <!-- Sección sabores de batido (promos 2x1) -->
+        <div id="sec_sabores_batido" style="display:none">
+            <span class="seccion-label">Sabores:</span>
+            <div id="sabores_batido_campos"></div>
+            <hr class="divider">
+        </div>
+
         <!-- Sección bebida -->
         <div id="sec_bebida" style="display:none">
             <span class="seccion-label">Bebida:</span>
@@ -214,17 +250,18 @@ $titulo = match($categoria_id) {
 </div>
 
 <script>
-const combosData = <?php echo json_encode(array_values($combos)); ?>;
+const combosData     = <?php echo json_encode(array_values($combos)); ?>;
+const saboresBatido  = <?php echo json_encode($saboresBatido); ?>;
 
 let comboActual = null;
-let state = { pizza1: null, pizza2: null, calzone: null, bebida: null, precio: 0 };
+let state = { pizza1: null, pizza2: null, calzone: null, bebida: null, batidos: [], precio: 0 };
 
 function abrirCombo(id) {
     comboActual = combosData.find(c => c.id == id);
     if(!comboActual) return;
 
     // Reset state
-    state = { pizza1: null, pizza2: null, calzone: null, bebida: null, precio: comboActual.precio };
+    state = { pizza1: null, pizza2: null, calzone: null, bebida: null, batidos: [], precio: comboActual.precio };
 
     // Encabezado
     document.getElementById('mc_titulo').textContent = comboActual.nombre;
@@ -243,6 +280,25 @@ function abrirCombo(id) {
     document.getElementById('sec_pizza2').style.display  = +comboActual.pide_segunda_pizza  ? 'block' : 'none';
     document.getElementById('sec_calzone').style.display = +comboActual.pide_calzone        ? 'block' : 'none';
     document.getElementById('sec_bebida').style.display  = +comboActual.pide_bebida         ? 'block' : 'none';
+
+    // Sabores de batido (promos 2x1)
+    const catBatido = comboActual.sabor_batido_cat;
+    document.getElementById('sec_sabores_batido').style.display = catBatido ? 'block' : 'none';
+    if(catBatido) {
+        const cant = Math.max(1, +comboActual.sabor_batido_qty || 1);
+        const opciones = saboresBatido[catBatido] || [];
+        const cont = document.getElementById('sabores_batido_campos');
+        cont.innerHTML = '';
+        state.batidos = new Array(cant).fill(null);
+        for(let i = 0; i < cant; i++) {
+            const sel = document.createElement('select');
+            sel.style.cssText = 'width:100%; padding:10px; border:2px solid #ddd; border-radius:5px; font-size:15px; margin-bottom:8px;';
+            sel.innerHTML = '<option value="">-- Batido ' + (i + 1) + ' --</option>' +
+                opciones.map(n => '<option>' + n + '</option>').join('');
+            sel.onchange = function() { state.batidos[i] = this.value || null; };
+            cont.appendChild(sel);
+        }
+    }
 
     // Etiqueta pizza1
     document.getElementById('lbl_pizza1').textContent =
@@ -307,6 +363,9 @@ function agregarCombo() {
     if(+c.pide_bebida && !state.bebida) {
         mostrarNotificacion('Seleccioná la bebida', 'error'); return;
     }
+    if(c.sabor_batido_cat && state.batidos.some(b => !b)) {
+        mostrarNotificacion('Seleccioná todos los sabores', 'error'); return;
+    }
 
     // Construir descripción
     const qp = s => s ? s.replace(/^Pizza\s+/i, '') : s;
@@ -315,6 +374,7 @@ function agregarCombo() {
     if(state.pizza1 && state.pizza2)  partes.push('P1: ' + qp(state.pizza1), 'P2: ' + qp(state.pizza2));
     if(state.calzone)                 partes.push('Calzone: ' + qp(state.calzone));
     if(state.bebida)                  partes.push(state.bebida);
+    if(state.batidos.length)          partes.push(state.batidos.join(' + '));
     const descripcion = partes.join(' — ');
 
     fetch('agregar_combo.php', {

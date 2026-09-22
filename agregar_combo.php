@@ -27,10 +27,10 @@ try {
         $numero_orden = $stmt->fetch(PDO::FETCH_ASSOC)['siguiente'];
 
         $stmt = $conn->prepare("
-            INSERT INTO ordenes (numero_orden, nombre_cliente, tipo_servicio, total, estado)
-            VALUES (?, 'Orden Automática', 'normal', 0, 'pendiente')
+            INSERT INTO ordenes (numero_orden, nombre_cliente, tipo_servicio, total, estado, sucursal)
+            VALUES (?, 'Orden Automática', 'normal', 0, 'pendiente', ?)
         ");
-        $stmt->execute([$numero_orden]);
+        $stmt->execute([$numero_orden, $_SESSION['sucursal'] ?? 'cariari']);
 
         $_SESSION['orden_actual'] = $conn->lastInsertId();
 

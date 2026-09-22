@@ -194,6 +194,17 @@ try {
         </div>
         <?php endif; ?>
 
+        <?php if($categoria_id == 10): ?>
+        <!-- Cobro manual para ventas fuera del sistema -->
+        <div style="max-width: 900px; margin: 0 auto 12px;">
+            <div class="producto-card" style="background:#fff; border:3px dashed #9c27b0; border-radius:10px; padding:15px; cursor:pointer; text-align:center;"
+                 onclick="abrirModalManual()">
+                <div style="font-weight:bold; font-size:17px;">✏️ Otro (escribir a mano)</div>
+                <div style="color:#888; font-size:13px; margin-top:4px;">Para cobrar algo que no está en el sistema</div>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <!-- Productos simples -->
         <div class="productos-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; max-width: 900px; margin: 0 auto;">
             <?php
@@ -475,6 +486,102 @@ try {
         });
     }
     </script>
+
+    <?php if($categoria_id == 10): ?>
+    <!-- Modal cobro manual -->
+    <div id="modal_manual" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; overflow-y:auto;">
+        <div style="max-width:500px; margin:20px auto; background:white; border-radius:10px; padding:15px;">
+            <h2 style="color:#9c27b0; margin-bottom:12px; font-size:18px;">✏️ Cobro manual</h2>
+
+            <div style="margin-bottom:12px;">
+                <label style="display:block; margin-bottom:6px; font-weight:bold; font-size:14px;">¿Qué es?</label>
+                <input type="text" id="manual_desc" maxlength="80" placeholder="Ej: Galleta artesanal" autocomplete="off"
+                       style="width:100%; padding:10px; border:2px solid #ddd; border-radius:5px; font-size:16px;">
+            </div>
+
+            <div style="margin-bottom:12px;">
+                <label style="display:block; margin-bottom:6px; font-weight:bold; font-size:14px;">Precio (₡ por unidad):</label>
+                <input type="text" id="manual_precio" inputmode="numeric" placeholder="0" autocomplete="off" oninput="actualizarManual()"
+                       style="width:100%; padding:10px; border:2px solid #ddd; border-radius:5px; font-size:18px; text-align:center;">
+            </div>
+
+            <div style="margin-bottom:12px;">
+                <label style="display:block; margin-bottom:6px; font-weight:bold; font-size:14px;">Cantidad:</label>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button onclick="cambiarCantidadManual(-1)" style="width:44px; height:44px; font-size:22px; border:2px solid #ddd; border-radius:5px; background:#f5f5f5; cursor:pointer;">−</button>
+                    <input type="number" id="manual_cantidad" value="1" min="1" oninput="actualizarManual()" style="flex:1; padding:10px; border:2px solid #ddd; border-radius:5px; font-size:16px; text-align:center;">
+                    <button onclick="cambiarCantidadManual(1)" style="width:44px; height:44px; font-size:22px; border:2px solid #ddd; border-radius:5px; background:#f5f5f5; cursor:pointer;">+</button>
+                </div>
+            </div>
+
+            <div id="manual_total" style="background:#9c27b0; color:white; padding:10px; border-radius:5px; text-align:center; font-size:20px; font-weight:bold; margin-bottom:12px;">
+                Total: ₡0
+            </div>
+
+            <button onclick="agregarManual()" style="width:100%; padding:12px; background:#4caf50; color:white; border:none; border-radius:5px; font-size:16px; font-weight:bold; cursor:pointer; margin-bottom:8px;">
+                Agregar al Carrito
+            </button>
+            <button onclick="document.getElementById('modal_manual').style.display='none'" style="width:100%; padding:10px; background:#666; color:white; border:none; border-radius:5px; font-size:14px; cursor:pointer;">
+                Cancelar
+            </button>
+        </div>
+    </div>
+
+    <script>
+    function abrirModalManual() {
+        document.getElementById('manual_desc').value = '';
+        document.getElementById('manual_precio').value = '';
+        document.getElementById('manual_cantidad').value = 1;
+        actualizarManual();
+        document.getElementById('modal_manual').style.display = 'block';
+        setTimeout(() => document.getElementById('manual_desc').focus(), 50);
+    }
+
+    function precioManual() {
+        return parseInt(document.getElementById('manual_precio').value.replace(/\D/g, ''), 10) || 0;
+    }
+
+    function cambiarCantidadManual(delta) {
+        const input = document.getElementById('manual_cantidad');
+        input.value = Math.max(1, (parseInt(input.value) || 1) + delta);
+        actualizarManual();
+    }
+
+    function actualizarManual() {
+        const cantidad = Math.max(1, parseInt(document.getElementById('manual_cantidad').value) || 1);
+        document.getElementById('manual_total').textContent = 'Total: ₡' + (precioManual() * cantidad).toLocaleString('es-CR');
+    }
+
+    function agregarManual() {
+        const desc = document.getElementById('manual_desc').value.trim();
+        const precio = precioManual();
+        const cantidad = Math.max(1, parseInt(document.getElementById('manual_cantidad').value) || 1);
+        if(!desc)       { mostrarNotificacion('Escribí qué es', 'error'); return; }
+        if(precio <= 0) { mostrarNotificacion('Escribí el precio', 'error'); return; }
+
+        fetch('agregar_producto_simple.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                tipo: 'producto_simple',
+                producto_nombre: 'Otro: ' + desc,
+                precio: precio,
+                cantidad: cantidad,
+                comentarios: ''
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if(data.success) {
+                mostrarNotificacion('Agregado');
+                window.location.href = 'menu.php';
+            } else {
+                mostrarNotificacion('Error: ' + data.error, 'error');
+            }
+        });
+    }
+    </script>
+    <?php endif; ?>
 </body>
 </html>
 

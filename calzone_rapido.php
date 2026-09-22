@@ -41,10 +41,10 @@ try {
     
     // Crear orden
     $stmt = $conn->prepare("
-        INSERT INTO ordenes (numero_orden, nombre_cliente, tipo_servicio, total, estado, cocina_notificado)
-        VALUES (?, 'Calzone Express', 'express', ?, 'pendiente', 0)
+        INSERT INTO ordenes (numero_orden, nombre_cliente, tipo_servicio, total, estado, cocina_notificado, sucursal)
+        VALUES (?, 'Calzone Express', 'express', ?, 'pendiente', 0, ?)
     ");
-    $stmt->execute([$numero_orden, $total]);
+    $stmt->execute([$numero_orden, $total, $_SESSION['sucursal'] ?? 'cariari']);
 
     $orden_id = $conn->lastInsertId();
 

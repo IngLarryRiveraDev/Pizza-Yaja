@@ -11,6 +11,14 @@ if(!isset($_SESSION['usuario_id'])) {
 // Recibir datos POST
 $datos = json_decode(file_get_contents('php://input'), true);
 
+$datos['producto_nombre'] = trim($datos['producto_nombre'] ?? '');
+$datos['cantidad'] = (int)($datos['cantidad'] ?? 0);
+if($datos['producto_nombre'] === '' || $datos['cantidad'] < 1
+   || !is_numeric($datos['precio'] ?? null) || $datos['precio'] < 0) {
+    echo json_encode(['success' => false, 'error' => 'Datos del producto inválidos']);
+    exit;
+}
+
 // ConexiÃ³n BD
 require_once 'config.php';
 
@@ -27,10 +35,10 @@ try {
         
         // Crear orden
         $stmt = $conn->prepare("
-            INSERT INTO ordenes (numero_orden, nombre_cliente, tipo_servicio, total, estado) 
-            VALUES (?, 'Orden Automática', 'normal', 0, 'pendiente')
+            INSERT INTO ordenes (numero_orden, nombre_cliente, tipo_servicio, total, estado, sucursal)
+            VALUES (?, 'Orden Automática', 'normal', 0, 'pendiente', ?)
         ");
-        $stmt->execute([$numero_orden]);
+        $stmt->execute([$numero_orden, $_SESSION['sucursal'] ?? 'cariari']);
         
         $_SESSION['orden_actual'] = $conn->lastInsertId();
         

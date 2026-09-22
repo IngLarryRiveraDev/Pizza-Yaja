@@ -32,7 +32,9 @@ try {
     $conn->beginTransaction();
     
     // Obtener siguiente nÃºmero de orden
-    $stmt = $conn->query("SELECT COALESCE(MAX(numero_orden), 0) + 1 as siguiente FROM ordenes WHERE DATE(fecha_creacion) = CURDATE()");
+    $sucursal = $_SESSION['sucursal'] ?? 'cariari';
+    $stmt = $conn->prepare("SELECT COALESCE(MAX(numero_orden), 0) + 1 as siguiente FROM ordenes WHERE DATE(fecha_creacion) = CURDATE() AND sucursal = ?");
+    $stmt->execute([$sucursal]);
     $numero_orden = $stmt->fetch(PDO::FETCH_ASSOC)['siguiente'];
     
     // Calcular total

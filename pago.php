@@ -99,7 +99,7 @@ try {
         .sinpe .metodo-header {
             background: #2196f3;
         }
-        .tarjeta .metodo-header {
+        .datafono .metodo-header {
             background: #ff9800;
         }
         .metodo-body {
@@ -134,7 +134,7 @@ try {
             background: #2196f3;
             color: white;
         }
-        .tarjeta .btn-completo {
+        .datafono .btn-completo {
             background: #ff9800;
             color: white;
         }
@@ -242,7 +242,7 @@ try {
                 💵 EFECTIVO
             </div>
             <div class="metodo-body">
-                <input type="tel" id="monto_efectivo" placeholder="0" inputmode="numeric" pattern="[0-9]*">
+                <input type="text" id="monto_efectivo" placeholder="0" inputmode="numeric" autocomplete="off">
                 <button class="btn-completo" onclick="completoEfectivo()">Completo</button>
             </div>
         </div>
@@ -253,19 +253,19 @@ try {
                 📌 SINPE
             </div>
             <div class="metodo-body">
-                <input type="tel" id="monto_sinpe" placeholder="0" inputmode="numeric" pattern="[0-9]*">
+                <input type="text" id="monto_sinpe" placeholder="0" inputmode="numeric" autocomplete="off">
                 <button class="btn-completo" onclick="completoSinpe()">Completo</button>
             </div>
         </div>
 
-        <!-- Tarjeta -->
-        <div class="metodo-pago tarjeta">
+        <!-- Datáfono -->
+        <div class="metodo-pago datafono">
             <div class="metodo-header">
-                💳 TARJETA
+                🧾 DATÁFONO
             </div>
             <div class="metodo-body">
-                <input type="tel" id="monto_tarjeta" placeholder="0" inputmode="numeric" pattern="[0-9]*">
-                <button class="btn-completo" onclick="completoTarjeta()">Completo</button>
+                <input type="text" id="monto_datafono" placeholder="0" inputmode="numeric" autocomplete="off">
+                <button class="btn-completo" onclick="completoDatafono()">Completo</button>
             </div>
         </div>
 
@@ -320,16 +320,16 @@ try {
             actualizarResumen();
         }
 
-        function completoTarjeta() {
+        function completoDatafono() {
             let pendiente = calcularPendiente();
-            document.getElementById('monto_tarjeta').value = Math.max(0, pendiente);
+            document.getElementById('monto_datafono').value = Math.max(0, pendiente);
             actualizarResumen();
         }
 
         function calcularPendiente() {
             let efectivo = parseFloat(document.getElementById('monto_efectivo').value) || 0;
             let sinpe = parseFloat(document.getElementById('monto_sinpe').value) || 0;
-            let tarjeta = parseFloat(document.getElementById('monto_tarjeta').value) || 0;
+            let tarjeta = parseFloat(document.getElementById('monto_datafono').value) || 0;
             
             let total_pagado = efectivo + sinpe + tarjeta;
             return Math.max(0, TOTAL_ORDEN - total_pagado);
@@ -338,7 +338,7 @@ try {
         function calcularVuelto() {
             let efectivo = parseFloat(document.getElementById('monto_efectivo').value) || 0;
             let sinpe = parseFloat(document.getElementById('monto_sinpe').value) || 0;
-            let tarjeta = parseFloat(document.getElementById('monto_tarjeta').value) || 0;
+            let tarjeta = parseFloat(document.getElementById('monto_datafono').value) || 0;
             
             let total_pagado = efectivo + sinpe + tarjeta;
             return Math.max(0, total_pagado - TOTAL_ORDEN);
@@ -347,7 +347,7 @@ try {
         function actualizarResumen() {
             let efectivo = parseFloat(document.getElementById('monto_efectivo').value) || 0;
             let sinpe = parseFloat(document.getElementById('monto_sinpe').value) || 0;
-            let tarjeta = parseFloat(document.getElementById('monto_tarjeta').value) || 0;
+            let tarjeta = parseFloat(document.getElementById('monto_datafono').value) || 0;
             
             pagos = {efectivo, sinpe, tarjeta};
             
@@ -363,7 +363,7 @@ try {
                 hayPagos = true;
             }
             if(tarjeta > 0) {
-                resumenHTML += `<div class="resumen-item"><span>💳 Tarjeta</span><span>₡${tarjeta.toLocaleString('es-CR')}</span></div>`;
+                resumenHTML += `<div class="resumen-item"><span>🧾 Datáfono</span><span>₡${tarjeta.toLocaleString('es-CR')}</span></div>`;
                 hayPagos = true;
             }
             
@@ -418,7 +418,7 @@ try {
         // Actualizar resumen al cambiar valores manualmente
         document.getElementById('monto_efectivo').addEventListener('input', actualizarResumen);
         document.getElementById('monto_sinpe').addEventListener('input', actualizarResumen);
-        document.getElementById('monto_tarjeta').addEventListener('input', actualizarResumen);
+        document.getElementById('monto_datafono').addEventListener('input', actualizarResumen);
     </script>
 </body>
 </html>

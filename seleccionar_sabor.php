@@ -22,7 +22,7 @@ try {
     // Por ahora usaremos los que ya insertamos en categoria 2 (Pizza Individual)
     $stmt = $conn->prepare("SELECT * FROM productos WHERE categoria_id = 2 AND activo = 1 AND disponible = 1 ORDER BY nombre");
     $stmt->execute();
-    $sabores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $sabores = limpiarSabores($stmt->fetchAll(PDO::FETCH_ASSOC));
     
 } catch(PDOException $e) {
     die("Error: " . $e->getMessage());

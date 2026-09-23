@@ -24,6 +24,21 @@ function getConnection() {
     return $conn;
 }
 
+// Recargo por sabor premium en calzones (en pizzas lo define cada sabor)
+define('PREMIUM_CALZONE', 1500);
+
+// Los sabores se guardan como "Pizza Peperoni"; al elegirlos sobra el "Pizza"
+function nombreSabor($n) {
+    return preg_replace('/^Pizza\s+/i', '', trim($n ?? ''));
+}
+
+function limpiarSabores(array $sabores) {
+    foreach($sabores as &$s) {
+        $s['nombre'] = nombreSabor($s['nombre']);
+    }
+    return $sabores;
+}
+
 // Llave fuera de la DB: PASS_KEY si está configurada, si no se deriva de las credenciales de la DB
 function passKey() {
     $k = defined('PASS_KEY') ? PASS_KEY : (getenv('PASS_KEY') ?: DB_USER . '|' . DB_PASS . '|' . DB_NAME . '|pizza-yaja');

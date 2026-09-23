@@ -273,7 +273,7 @@ if(!isset($_SESSION['usuario_id']) || $_SESSION['rol'] != 'cocina') {
                 gain.connect(ctx.destination);
                 osc.type = 'sine';
                 osc.frequency.value = frecuencia;
-                gain.gain.setValueAtTime(0.5, ctx.currentTime + delay);
+                gain.gain.setValueAtTime(0.85, ctx.currentTime + delay);
                 gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + duracion);
                 osc.start(ctx.currentTime + delay);
                 osc.stop(ctx.currentTime + delay + duracion + 0.05);

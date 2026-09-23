@@ -454,6 +454,74 @@ function enviarACocina(id) {
 // Recargar cada 30s
 setInterval(() => location.reload(), 30000);
 
+// ── TIMBRE: cocina marcó una orden como lista ──
+let audioCtx = null;
+
+function desbloquearAudio() {
+    if(audioCtx) return;
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+    } catch(e) {}
+}
+document.addEventListener('click', desbloquearAudio, { once: true });
+document.addEventListener('touchstart', desbloquearAudio, { once: true });
+
+// Tono ascendente, distinto al "ding-dong" de cocina
+function sonarListo() {
+    if(!audioCtx) return;
+    [[784, 0, 0.14], [1047, 0.16, 0.22]].forEach(([frec, delay, dur]) => {
+        try {
+            const osc  = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'triangle';
+            osc.frequency.value = frec;
+            gain.gain.setValueAtTime(0.7, audioCtx.currentTime + delay);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + dur);
+            osc.start(audioCtx.currentTime + delay);
+            osc.stop(audioCtx.currentTime + delay + dur + 0.05);
+        } catch(e) {}
+    });
+}
+
+function avisarListo(numeros) {
+    mostrarNotificacion('🔔 Orden ' + numeros.map(n => '#' + n).join(', ') + ' lista');
+    let veces = 0;
+    sonarListo();
+    const rep = setInterval(() => {
+        if(++veces >= 3) { clearInterval(rep); return; }
+        sonarListo();
+    }, 900);
+}
+
+// Las vistas se guardan en la pestaña para que la recarga de 30s no repita el aviso
+function listasVistas() {
+    try { return JSON.parse(sessionStorage.getItem('ordenes_listas_avisadas') || '[]'); }
+    catch(e) { return []; }
+}
+function guardarVistas(ids) {
+    try { sessionStorage.setItem('ordenes_listas_avisadas', JSON.stringify(ids)); } catch(e) {}
+}
+
+function revisarListas() {
+    fetch('get_ordenes_listas.php')
+        .then(r => r.json())
+        .then(d => {
+            if(!d.success) return;
+            const ids    = d.ordenes.map(o => String(o.id));
+            const vistas = listasVistas();
+            const nuevas = d.ordenes.filter(o => !vistas.includes(String(o.id)));
+            if(nuevas.length && audioCtx) avisarListo(nuevas.map(o => o.numero_orden));
+            // Solo recuerda las que siguen listas, así la misma orden vuelve a avisar si repite
+            guardarVistas(ids);
+        })
+        .catch(() => {});
+}
+revisarListas();
+setInterval(revisarListas, 5000);
+
 // ── CALZONE RÁPIDO ──
 function calzoneRapido() {
     document.getElementById('modal_calzone_rapido').style.display = 'block';

@@ -20,8 +20,8 @@ try {
     
     // Obtener sabores de pizza (categorÃ­a 2)
     $stmt = $conn->query("SELECT * FROM productos WHERE categoria_id = 2 AND activo = 1 AND disponible = 1 ORDER BY nombre");
-    $sabores = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+    $sabores = limpiarSabores($stmt->fetchAll(PDO::FETCH_ASSOC));
+
 } catch(PDOException $e) {
     die("Error: " . $e->getMessage());
 }
@@ -143,10 +143,10 @@ try {
             <select id="sabor_select" onchange="seleccionarSabor()" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px;">
                 <option value="">-- Seleccione un sabor --</option>
                 <?php foreach($sabores as $sabor): ?>
-                    <option value='<?php echo json_encode(['id' => $sabor['id'], 'nombre' => $sabor['nombre'], 'esPremium' => $sabor['es_premium'], 'precioPremium' => $sabor['precio_premium']]); ?>'>
+                    <option value='<?php echo json_encode(['id' => $sabor['id'], 'nombre' => $sabor['nombre'], 'esPremium' => $sabor['es_premium'], 'precioPremium' => PREMIUM_CALZONE]); ?>'>
                         <?php echo htmlspecialchars($sabor['nombre']); ?>
                         <?php if($sabor['es_premium']): ?>
-                            +₡<?php echo number_format($sabor['precio_premium']); ?>
+                            +₡<?php echo number_format(PREMIUM_CALZONE); ?>
                         <?php endif; ?>
                     </option>
                 <?php endforeach; ?>

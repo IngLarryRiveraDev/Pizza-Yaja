@@ -20,10 +20,14 @@ $conn->exec("
         sistema_sinpe    DECIMAL(10,2) NOT NULL DEFAULT 0,
         sistema_tarjeta  DECIMAL(10,2) NOT NULL DEFAULT 0,
         notas            TEXT,
+        periodo_desde    DATETIME NULL,
+        periodo_hasta    DATETIME NULL,
         created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
         UNIQUE KEY uk_usuario_fecha (usuario_id, fecha_cierre)
     )
 ");
+try { $conn->exec("ALTER TABLE arqueos ADD COLUMN periodo_desde DATETIME NULL"); } catch(PDOException $e) {}
+try { $conn->exec("ALTER TABLE arqueos ADD COLUMN periodo_hasta DATETIME NULL"); } catch(PDOException $e) {}
 
 if(isset($_GET['suc']) && in_array($_GET['suc'], ['cariari','guapiles','ambas'])) {
     $_SESSION['erp_sucursal'] = $_GET['suc'];
@@ -120,6 +124,7 @@ function fmt($n) {
           <thead>
             <tr>
               <th>Fecha</th>
+              <th>Turno</th>
               <th>Cajero</th>
               <th>Sucursal</th>
               <th colspan="2" style="text-align:center;border-left:1px solid #eee">💵 Efectivo</th>
@@ -129,7 +134,7 @@ function fmt($n) {
               <th>Notas</th>
             </tr>
             <tr style="font-size:11px;color:#aaa">
-              <th></th><th></th><th></th>
+              <th></th><th></th><th></th><th></th>
               <th style="text-align:right;font-weight:600;border-left:1px solid #eee">Sistema</th>
               <th style="text-align:right;font-weight:600">Físico</th>
               <th style="text-align:right;font-weight:600;border-left:1px solid #eee">Sistema</th>
@@ -152,6 +157,13 @@ function fmt($n) {
               <td style="white-space:nowrap;color:#888;font-size:12px">
                 <?= date('d/m/Y', strtotime($c['fecha_cierre'])) ?>
                 <br><span style="font-size:11px"><?= date('H:i', strtotime($c['created_at'])) ?></span>
+              </td>
+              <td style="white-space:nowrap;font-size:12px">
+                <?php if($c['periodo_desde'] && $c['periodo_hasta']): ?>
+                  <?= date('H:i', strtotime($c['periodo_desde'])) ?> a <?= date('H:i', strtotime($c['periodo_hasta'])) ?>
+                <?php else: ?>
+                  <span style="color:#ccc">día completo</span>
+                <?php endif; ?>
               </td>
               <td><strong><?= htmlspecialchars($c['cajero_nombre'] ?? '—') ?></strong></td>
               <td>

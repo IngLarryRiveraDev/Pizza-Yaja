@@ -30,21 +30,35 @@ try {
             sistema_sinpe    DECIMAL(10,2) NOT NULL DEFAULT 0,
             sistema_tarjeta  DECIMAL(10,2) NOT NULL DEFAULT 0,
             notas            TEXT,
+            periodo_desde    DATETIME NULL,
+            periodo_hasta    DATETIME NULL,
             created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY uk_usuario_fecha (usuario_id, fecha_cierre)
         )
     ");
+    try { $conn->exec("ALTER TABLE arqueos ADD COLUMN periodo_desde DATETIME NULL"); } catch(PDOException $e) {}
+    try { $conn->exec("ALTER TABLE arqueos ADD COLUMN periodo_hasta DATETIME NULL"); } catch(PDOException $e) {}
 } catch(PDOException $e) {}
 
-// Verificar órdenes activas pendientes
-$ordenes_activas = 0;
+// El turno arranca donde terminó el cierre anterior de esta sucursal
+$periodo_desde = date('Y-m-d 00:00:00');
+try {
+    $ult = $conn->prepare("SELECT MAX(periodo_hasta) FROM arqueos WHERE sucursal = ?");
+    $ult->execute([$sucursal]);
+    $ultimo = $ult->fetchColumn();
+    if($ultimo) $periodo_desde = $ultimo;
+} catch(PDOException $e) {}
+
+// Órdenes que siguen abiertas: no bloquean, pasan al siguiente turno
+$ordenes_abiertas = [];
 try {
     $chkOrd = $conn->prepare("
-        SELECT COUNT(*) FROM ordenes
+        SELECT numero_orden, nombre_cliente, total FROM ordenes
         WHERE sucursal = ? AND estado IN ('pendiente','en_cocina','listo','pagado')
+        ORDER BY numero_orden
     ");
     $chkOrd->execute([$sucursal]);
-    $ordenes_activas = (int)$chkOrd->fetchColumn();
+    $ordenes_abiertas = $chkOrd->fetchAll(PDO::FETCH_ASSOC);
 } catch(PDOException $e) {}
 
 // Verificar si ya envió arqueo hoy
@@ -57,24 +71,26 @@ try {
 } catch(PDOException $e) {}
 
 // Procesar envío
-if($_SERVER['REQUEST_METHOD'] === 'POST' && !$error && $ordenes_activas === 0) {
+if($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
     $fisico_efectivo = (float)str_replace(',', '.', $_POST['efectivo'] ?? 0);
     $fisico_sinpe    = (float)str_replace(',', '.', $_POST['sinpe']    ?? 0);
     $fisico_tarjeta  = (float)str_replace(',', '.', $_POST['tarjeta']  ?? 0);
     $notas           = trim($_POST['notas'] ?? '');
 
+    $periodo_hasta = date('Y-m-d H:i:s');
+
     try {
-        // Capturar totales del sistema server-side
+        // Lo cobrado durante este turno, por la hora real del pago
         $stmt = $conn->prepare("
             SELECT p.metodo_pago, COALESCE(SUM(p.monto_aplicado), 0) AS total
             FROM pagos p
             JOIN ordenes o ON p.orden_id = o.id
-            WHERE o.estado = 'completado'
-              AND DATE(o.fecha_creacion) = ?
-              AND o.sucursal = ?
+            WHERE o.sucursal = ?
+              AND p.fecha_pago >  ?
+              AND p.fecha_pago <= ?
             GROUP BY p.metodo_pago
         ");
-        $stmt->execute([$fecha_hoy, $sucursal]);
+        $stmt->execute([$sucursal, $periodo_desde, $periodo_hasta]);
         $sys = ['efectivo'=>0,'sinpe'=>0,'tarjeta'=>0];
         foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) $sys[$r['metodo_pago']] = (float)$r['total'];
 
@@ -82,14 +98,16 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && !$error && $ordenes_activas === 0) {
             INSERT INTO arqueos
                 (usuario_id, sucursal, fecha_cierre,
                  fisico_efectivo, fisico_sinpe, fisico_tarjeta,
-                 sistema_efectivo, sistema_sinpe, sistema_tarjeta, notas)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+                 sistema_efectivo, sistema_sinpe, sistema_tarjeta, notas,
+                 periodo_desde, periodo_hasta)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
         ");
         $ins->execute([
             $usuario_id, $sucursal, $fecha_hoy,
             $fisico_efectivo, $fisico_sinpe, $fisico_tarjeta,
             $sys['efectivo'], $sys['sinpe'], $sys['tarjeta'],
-            $notas
+            $notas,
+            $periodo_desde, $periodo_hasta
         ]);
         $enviado = true;
     } catch(PDOException $e) {
@@ -187,17 +205,7 @@ $suc_nombre = ['cariari'=>'Cariari','guapiles'=>'Guapiles'][$sucursal] ?? ucfirs
         <span class="sucursal-badge">📍 <?php echo $suc_nombre; ?></span>
     </div>
 
-    <?php if($ordenes_activas > 0 && !$enviado): ?>
-        <div class="alerta" style="border-color:#e53935">
-            <div class="icon">🚫</div>
-            <p><strong>No podés cerrar con órdenes activas.</strong><br>
-            Quedan <strong><?= $ordenes_activas ?></strong> orden<?= $ordenes_activas > 1 ? 'es' : '' ?> sin completar o eliminar.</p>
-        </div>
-        <a href="ordenes_activas.php" class="btn-enviar" style="background:#e53935;display:block;text-align:center;text-decoration:none;margin-top:8px;">
-            Ver órdenes activas
-        </a>
-
-    <?php elseif($enviado): ?>
+    <?php if($enviado): ?>
         <div class="estado-ok">
             <div class="icon">✅</div>
             <h2>Cierre enviado</h2>
@@ -213,9 +221,32 @@ $suc_nombre = ['cariari'=>'Cariari','guapiles'=>'Guapiles'][$sucursal] ?? ucfirs
         <a href="ordenes_activas.php" class="btn-volver">← Volver</a>
 
     <?php else: ?>
-        <p style="color:#888;font-size:13px;text-align:center;margin-bottom:20px;">
+        <p style="color:#888;font-size:13px;text-align:center;margin-bottom:8px;">
             Ingresá los montos físicos contados al cierre.
         </p>
+        <p style="color:#aaa;font-size:12px;text-align:center;margin-bottom:16px;">
+            Tu turno cuenta desde <?= date('d/m H:i', strtotime($periodo_desde)) ?>
+        </p>
+
+        <?php if(!empty($ordenes_abiertas)): ?>
+        <div style="background:#e3f2fd;border:2px solid #90caf9;border-radius:10px;padding:12px;margin-bottom:16px;">
+            <div style="font-size:13px;font-weight:bold;color:#1565c0;margin-bottom:8px;">
+                🔄 <?= count($ordenes_abiertas) ?> orden<?= count($ordenes_abiertas) > 1 ? 'es' : '' ?> queda<?= count($ordenes_abiertas) > 1 ? 'n' : '' ?> abierta<?= count($ordenes_abiertas) > 1 ? 's' : '' ?>
+            </div>
+            <div style="font-size:12px;color:#555;line-height:1.7;">
+                <?php foreach($ordenes_abiertas as $oa): ?>
+                    <div>
+                        <strong>#<?= (int)$oa['numero_orden'] ?></strong>
+                        <?= htmlspecialchars($oa['nombre_cliente'] ?: 'Sin asignar') ?>
+                        — ₡<?= number_format($oa['total'], 0) ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <div style="font-size:12px;color:#1565c0;margin-top:8px;">
+                No las borres: pasan al siguiente turno y lo que se cobre ahí cuenta para el otro camarero.
+            </div>
+        </div>
+        <?php endif; ?>
 
         <form method="POST">
             <div class="field">

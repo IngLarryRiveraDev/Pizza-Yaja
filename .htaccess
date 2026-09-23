@@ -1,0 +1,8 @@
+RewriteEngine On
+
+# La raíz del dominio muestra la página pública (web/)
+RewriteRule ^$ web/index.html [L]
+RewriteRule ^img/(.+)$ web/img/$1 [L]
+
+# El sistema para el personal entra por /sistema
+RewriteRule ^sistema/?$ index.php [L]

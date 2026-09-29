@@ -28,6 +28,9 @@ $conn->exec("
 ");
 try { $conn->exec("ALTER TABLE arqueos ADD COLUMN periodo_desde DATETIME NULL"); } catch(PDOException $e) {}
 try { $conn->exec("ALTER TABLE arqueos ADD COLUMN periodo_hasta DATETIME NULL"); } catch(PDOException $e) {}
+foreach(['efectivo','sinpe','tarjeta'] as $m) {
+    try { $conn->exec("ALTER TABLE arqueos ADD COLUMN gastos_{$m} DECIMAL(10,2) NOT NULL DEFAULT 0"); } catch(PDOException $e) {}
+}
 
 if(isset($_GET['suc']) && in_array($_GET['suc'], ['cariari','guapiles','ambas'])) {
     $_SESSION['erp_sucursal'] = $_GET['suc'];
@@ -70,6 +73,11 @@ function diffClass($d) {
 }
 function fmt($n) {
     return '₡' . number_format(abs($n), 0, ',', '.');
+}
+function gastoCell($n) {
+    return $n > 0
+        ? '<span style="color:#c62828">−' . fmt($n) . '</span>'
+        : '<span style="color:#ddd">—</span>';
 }
 ?>
 <!DOCTYPE html>
@@ -127,19 +135,22 @@ function fmt($n) {
               <th>Turno</th>
               <th>Cajero</th>
               <th>Sucursal</th>
-              <th colspan="2" style="text-align:center;border-left:1px solid #eee">💵 Efectivo</th>
-              <th colspan="2" style="text-align:center;border-left:1px solid #eee">📌 SINPE</th>
-              <th colspan="2" style="text-align:center;border-left:1px solid #eee">💳 Tarjeta</th>
+              <th colspan="3" style="text-align:center;border-left:1px solid #eee">💵 Efectivo</th>
+              <th colspan="3" style="text-align:center;border-left:1px solid #eee">📌 SINPE</th>
+              <th colspan="3" style="text-align:center;border-left:1px solid #eee">💳 Tarjeta</th>
               <th style="border-left:1px solid #eee">Diferencia total</th>
               <th>Notas</th>
             </tr>
             <tr style="font-size:11px;color:#aaa">
               <th></th><th></th><th></th><th></th>
-              <th style="text-align:right;font-weight:600;border-left:1px solid #eee">Sistema</th>
+              <th style="text-align:right;font-weight:600;border-left:1px solid #eee">Gastos</th>
+              <th style="text-align:right;font-weight:600">Esperado</th>
               <th style="text-align:right;font-weight:600">Físico</th>
-              <th style="text-align:right;font-weight:600;border-left:1px solid #eee">Sistema</th>
+              <th style="text-align:right;font-weight:600;border-left:1px solid #eee">Gastos</th>
+              <th style="text-align:right;font-weight:600">Esperado</th>
               <th style="text-align:right;font-weight:600">Físico</th>
-              <th style="text-align:right;font-weight:600;border-left:1px solid #eee">Sistema</th>
+              <th style="text-align:right;font-weight:600;border-left:1px solid #eee">Gastos</th>
+              <th style="text-align:right;font-weight:600">Esperado</th>
               <th style="text-align:right;font-weight:600">Físico</th>
               <th style="border-left:1px solid #eee"></th>
               <th></th>
@@ -173,15 +184,18 @@ function fmt($n) {
               </td>
 
               <!-- Efectivo -->
-              <td style="text-align:right;border-left:1px solid #f5f5f5;color:#555"><?= fmt($c['sistema_efectivo']) ?></td>
+              <td style="text-align:right;border-left:1px solid #f5f5f5"><?= gastoCell($c['gastos_efectivo'] ?? 0) ?></td>
+              <td style="text-align:right;color:#555"><?= fmt($c['sistema_efectivo']) ?></td>
               <td style="text-align:right"><?= fmt($c['fisico_efectivo']) ?></td>
 
               <!-- SINPE -->
-              <td style="text-align:right;border-left:1px solid #f5f5f5;color:#555"><?= fmt($c['sistema_sinpe']) ?></td>
+              <td style="text-align:right;border-left:1px solid #f5f5f5"><?= gastoCell($c['gastos_sinpe'] ?? 0) ?></td>
+              <td style="text-align:right;color:#555"><?= fmt($c['sistema_sinpe']) ?></td>
               <td style="text-align:right"><?= fmt($c['fisico_sinpe']) ?></td>
 
               <!-- Tarjeta -->
-              <td style="text-align:right;border-left:1px solid #f5f5f5;color:#555"><?= fmt($c['sistema_tarjeta']) ?></td>
+              <td style="text-align:right;border-left:1px solid #f5f5f5"><?= gastoCell($c['gastos_tarjeta'] ?? 0) ?></td>
+              <td style="text-align:right;color:#555"><?= fmt($c['sistema_tarjeta']) ?></td>
               <td style="text-align:right"><?= fmt($c['fisico_tarjeta']) ?></td>
 
               <!-- Diferencia total -->
@@ -216,6 +230,10 @@ function fmt($n) {
     $resSinpe = array_sum(array_column($cierres, 'sistema_sinpe'));
     $resTarj  = array_sum(array_column($cierres, 'sistema_tarjeta'));
     $resTotal = $resEfec + $resSinpe + $resTarj;
+    $resGastos = array_sum(array_map(
+        fn($c) => ($c['gastos_efectivo'] ?? 0) + ($c['gastos_sinpe'] ?? 0) + ($c['gastos_tarjeta'] ?? 0),
+        $cierres
+    ));
     $dResEfec  = array_sum(array_map(fn($c) => diff($c['sistema_efectivo'], $c['fisico_efectivo']), $cierres));
     $dResSinpe = array_sum(array_map(fn($c) => diff($c['sistema_sinpe'],    $c['fisico_sinpe']),    $cierres));
     $dResTarj  = array_sum(array_map(fn($c) => diff($c['sistema_tarjeta'],  $c['fisico_tarjeta']),  $cierres));
@@ -224,21 +242,27 @@ function fmt($n) {
     <div class="kpi-row" style="margin-top:16px">
       <div class="kpi grn">
         <div class="kpi-icon">💵</div>
-        <div class="kpi-lbl">Sistema efectivo</div>
+        <div class="kpi-lbl">Esperado efectivo</div>
         <div class="kpi-val" style="font-size:20px"><?= fmt($resEfec) ?></div>
-        <div class="kpi-sub">período</div>
+        <div class="kpi-sub">cobrado menos gastos</div>
       </div>
       <div class="kpi blu">
         <div class="kpi-icon">📌</div>
-        <div class="kpi-lbl">Sistema SINPE</div>
+        <div class="kpi-lbl">Esperado SINPE</div>
         <div class="kpi-val" style="font-size:20px"><?= fmt($resSinpe) ?></div>
-        <div class="kpi-sub">período</div>
+        <div class="kpi-sub">cobrado menos gastos</div>
       </div>
       <div class="kpi pur">
         <div class="kpi-icon">💳</div>
-        <div class="kpi-lbl">Sistema tarjeta</div>
+        <div class="kpi-lbl">Esperado tarjeta</div>
         <div class="kpi-val" style="font-size:20px"><?= fmt($resTarj) ?></div>
-        <div class="kpi-sub">período</div>
+        <div class="kpi-sub">cobrado menos gastos</div>
+      </div>
+      <div class="kpi red">
+        <div class="kpi-icon">💸</div>
+        <div class="kpi-lbl">Gastos del período</div>
+        <div class="kpi-val" style="font-size:20px"><?= fmt($resGastos) ?></div>
+        <div class="kpi-sub">salieron de caja</div>
       </div>
       <div class="kpi <?= $dResTotal < 0 ? 'red' : ($dResTotal > 0 ? 'grn' : 'ora') ?>">
         <div class="kpi-icon">⚖️</div>

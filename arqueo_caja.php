@@ -38,6 +38,9 @@ try {
     ");
     try { $conn->exec("ALTER TABLE arqueos ADD COLUMN periodo_desde DATETIME NULL"); } catch(PDOException $e) {}
     try { $conn->exec("ALTER TABLE arqueos ADD COLUMN periodo_hasta DATETIME NULL"); } catch(PDOException $e) {}
+    foreach(['efectivo','sinpe','tarjeta'] as $m) {
+        try { $conn->exec("ALTER TABLE arqueos ADD COLUMN gastos_{$m} DECIMAL(10,2) NOT NULL DEFAULT 0"); } catch(PDOException $e) {}
+    }
 } catch(PDOException $e) {}
 
 // El turno arranca donde terminó el cierre anterior de esta sucursal
@@ -94,18 +97,42 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
         $sys = ['efectivo'=>0,'sinpe'=>0,'tarjeta'=>0];
         foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) $sys[$r['metodo_pago']] = (float)$r['total'];
 
+        // Lo que salió de caja durante el turno
+        $gas = ['efectivo'=>0,'sinpe'=>0,'tarjeta'=>0];
+        try {
+            $gq = $conn->prepare("
+                SELECT metodo_pago, COALESCE(SUM(monto), 0) AS total
+                FROM gastos
+                WHERE sucursal = ?
+                  AND created_at >  ?
+                  AND created_at <= ?
+                GROUP BY metodo_pago
+            ");
+            $gq->execute([$sucursal, $periodo_desde, $periodo_hasta]);
+            foreach($gq->fetchAll(PDO::FETCH_ASSOC) as $r) $gas[$r['metodo_pago']] = (float)$r['total'];
+        } catch(PDOException $e) {}
+
+        // Lo que debería haber en caja: lo cobrado menos los gastos del turno
+        $esperado = [
+            'efectivo' => $sys['efectivo'] - $gas['efectivo'],
+            'sinpe'    => $sys['sinpe']    - $gas['sinpe'],
+            'tarjeta'  => $sys['tarjeta']  - $gas['tarjeta'],
+        ];
+
         $ins = $conn->prepare("
             INSERT INTO arqueos
                 (usuario_id, sucursal, fecha_cierre,
                  fisico_efectivo, fisico_sinpe, fisico_tarjeta,
-                 sistema_efectivo, sistema_sinpe, sistema_tarjeta, notas,
+                 sistema_efectivo, sistema_sinpe, sistema_tarjeta,
+                 gastos_efectivo, gastos_sinpe, gastos_tarjeta, notas,
                  periodo_desde, periodo_hasta)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ");
         $ins->execute([
             $usuario_id, $sucursal, $fecha_hoy,
             $fisico_efectivo, $fisico_sinpe, $fisico_tarjeta,
-            $sys['efectivo'], $sys['sinpe'], $sys['tarjeta'],
+            $esperado['efectivo'], $esperado['sinpe'], $esperado['tarjeta'],
+            $gas['efectivo'], $gas['sinpe'], $gas['tarjeta'],
             $notas,
             $periodo_desde, $periodo_hasta
         ]);

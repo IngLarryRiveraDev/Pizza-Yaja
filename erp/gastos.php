@@ -22,12 +22,14 @@ $conn->exec("
     monto       DECIMAL(10,2) NOT NULL,
     fecha       DATE NOT NULL,
     sucursal    VARCHAR(20)  NOT NULL DEFAULT 'cariari',
+    metodo_pago ENUM('efectivo','sinpe','tarjeta') NOT NULL DEFAULT 'efectivo',
     nota        TEXT,
     usuario_id  INT,
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 ");
 try { $conn->exec("ALTER TABLE gastos ADD COLUMN sucursal VARCHAR(20) NOT NULL DEFAULT 'cariari' AFTER fecha"); } catch(PDOException $e) {}
+try { $conn->exec("ALTER TABLE gastos ADD COLUMN metodo_pago ENUM('efectivo','sinpe','tarjeta') NOT NULL DEFAULT 'efectivo' AFTER sucursal"); } catch(PDOException $e) {}
 
 // ── AJAX ──────────────────────────────────────────────────────────────────────
 if($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -36,12 +38,14 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $d['accion'] ?? '';
     try {
         if($accion === 'crear') {
-            $stmt = $conn->prepare("INSERT INTO gastos (concepto,categoria,monto,fecha,sucursal,nota,usuario_id) VALUES (?,?,?,?,?,?,?)");
-            $stmt->execute([$d['concepto'], $d['categoria'], $d['monto'], $d['fecha'], $d['sucursal']??'cariari', $d['nota'] ?? null, $_SESSION['usuario_id']]);
+            $metodo = in_array($d['metodo_pago'] ?? '', ['efectivo','sinpe','tarjeta']) ? $d['metodo_pago'] : 'efectivo';
+            $stmt = $conn->prepare("INSERT INTO gastos (concepto,categoria,monto,fecha,sucursal,metodo_pago,nota,usuario_id) VALUES (?,?,?,?,?,?,?,?)");
+            $stmt->execute([$d['concepto'], $d['categoria'], $d['monto'], $d['fecha'], $d['sucursal']??'cariari', $metodo, $d['nota'] ?? null, $_SESSION['usuario_id']]);
             echo json_encode(['success'=>true]);
         } elseif($accion === 'editar') {
-            $stmt = $conn->prepare("UPDATE gastos SET concepto=?,categoria=?,monto=?,fecha=?,nota=? WHERE id=?");
-            $stmt->execute([$d['concepto'], $d['categoria'], $d['monto'], $d['fecha'], $d['nota'] ?? null, $d['id']]);
+            $metodo = in_array($d['metodo_pago'] ?? '', ['efectivo','sinpe','tarjeta']) ? $d['metodo_pago'] : 'efectivo';
+            $stmt = $conn->prepare("UPDATE gastos SET concepto=?,categoria=?,monto=?,fecha=?,metodo_pago=?,nota=? WHERE id=?");
+            $stmt->execute([$d['concepto'], $d['categoria'], $d['monto'], $d['fecha'], $metodo, $d['nota'] ?? null, $d['id']]);
             echo json_encode(['success'=>true]);
         } elseif($accion === 'eliminar') {
             $conn->prepare("DELETE FROM gastos WHERE id=?")->execute([$d['id']]);
@@ -61,7 +65,12 @@ $desde = date('Y-m-d', strtotime("-{$dias} day"));
 $DONE  = "estado = 'completado'";
 
 // Gastos del período
-$gastos = $conn->prepare("SELECT * FROM gastos WHERE fecha >= ? {$SUC} ORDER BY fecha DESC");
+$gastos = $conn->prepare("
+  SELECT g.*, u.nombre AS registrado_por
+  FROM gastos g LEFT JOIN usuarios u ON g.usuario_id = u.id
+  WHERE g.fecha >= ? " . str_replace('sucursal', 'g.sucursal', $SUC) . "
+  ORDER BY g.fecha DESC, g.created_at DESC
+");
 $gastos->execute([$desde]);
 $gastosList = $gastos->fetchAll();
 
@@ -180,10 +189,14 @@ $catMap = array_combine($CATS, $catColors);
       <div class="ec-head">Registro de gastos</div>
       <div class="ec-body np">
         <table class="et">
-          <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><?php if($suc_filtro==='ambas'): ?><th>Sucursal</th><?php endif; ?><th>Monto</th><th>Nota</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><?php if($suc_filtro==='ambas'): ?><th>Sucursal</th><?php endif; ?><th>Pagado con</th><th>Registró</th><th>Monto</th><th>Nota</th><th>Acciones</th></tr></thead>
           <tbody>
-          <?php foreach($gastosList as $g):
+          <?php
+          $metLabel = ['efectivo'=>'💵 Efectivo','sinpe'=>'📌 SINPE','tarjeta'=>'💳 Tarjeta'];
+          $metCls   = ['efectivo'=>'bdg-grn','sinpe'=>'bdg-blu','tarjeta'=>'bdg-pur'];
+          foreach($gastosList as $g):
             $scls = ($g['sucursal']??'') === 'guapiles' ? 'bdg-blu' : 'bdg-org';
+            $met  = $g['metodo_pago'] ?? 'efectivo';
           ?>
             <tr>
               <td style="white-space:nowrap;color:#888"><?= date('d/m/Y', strtotime($g['fecha'])) ?></td>
@@ -192,6 +205,8 @@ $catMap = array_combine($CATS, $catColors);
               <?php if($suc_filtro==='ambas'): ?>
               <td><span class="bdg <?= $scls ?>"><?= ucfirst($g['sucursal']??'—') ?></span></td>
               <?php endif; ?>
+              <td><span class="bdg <?= $metCls[$met] ?? 'bdg-gry' ?>"><?= $metLabel[$met] ?? $met ?></span></td>
+              <td style="color:#888;font-size:12px"><?= htmlspecialchars($g['registrado_por'] ?? '—') ?></td>
               <td style="font-weight:700;color:var(--red)">₡<?= number_format($g['monto'],0) ?></td>
               <td style="color:#888;font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                 <?= htmlspecialchars($g['nota'] ?? '—') ?>
@@ -205,7 +220,7 @@ $catMap = array_combine($CATS, $catColors);
             </tr>
           <?php endforeach; ?>
           <?php if(empty($gastosList)): ?>
-            <tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">Sin gastos registrados en este período</td></tr>
+            <tr><td colspan="<?= $suc_filtro==='ambas' ? 9 : 8 ?>" style="text-align:center;color:#aaa;padding:30px">Sin gastos registrados en este período</td></tr>
           <?php endif; ?>
           </tbody>
         </table>
@@ -252,9 +267,19 @@ $catMap = array_combine($CATS, $catColors);
           <input class="ef" type="number" id="gMonto" min="0" step="100" placeholder="0">
         </div>
       </div>
-      <div class="ef-group">
-        <label class="ef-label">Fecha</label>
-        <input class="ef" type="date" id="gFecha" value="<?= date('Y-m-d') ?>">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="ef-group">
+          <label class="ef-label">Fecha</label>
+          <input class="ef" type="date" id="gFecha" value="<?= date('Y-m-d') ?>">
+        </div>
+        <div class="ef-group">
+          <label class="ef-label">Pagado con</label>
+          <select class="ef" id="gMetodo">
+            <option value="efectivo">💵 Efectivo</option>
+            <option value="sinpe">📌 SINPE</option>
+            <option value="tarjeta">💳 Tarjeta</option>
+          </select>
+        </div>
       </div>
       <div class="ef-group">
         <label class="ef-label">Nota (opcional)</label>
@@ -275,6 +300,7 @@ function abrirModal(g) {
   document.getElementById('gCat').value     = g ? g.categoria : 'otros';
   document.getElementById('gMonto').value   = g ? g.monto : '';
   document.getElementById('gFecha').value   = g ? g.fecha : '<?= date('Y-m-d') ?>';
+  document.getElementById('gMetodo').value  = g ? (g.metodo_pago || 'efectivo') : 'efectivo';
   document.getElementById('gNota').value    = g ? (g.nota||'') : '';
   document.getElementById('mTitle').textContent = g ? 'Editar gasto' : 'Registrar gasto';
   document.getElementById('modal').style.display = 'flex';
@@ -291,8 +317,9 @@ function guardar() {
     categoria: document.getElementById('gCat').value,
     monto:     parseFloat(document.getElementById('gMonto').value),
     fecha:     document.getElementById('gFecha').value,
-    sucursal:  document.getElementById('gSucursal').value,
-    nota:      document.getElementById('gNota').value.trim(),
+    sucursal:    document.getElementById('gSucursal').value,
+    metodo_pago: document.getElementById('gMetodo').value,
+    nota:        document.getElementById('gNota').value.trim(),
   };
   if(!body.concepto || !body.monto || !body.fecha) { alert('Concepto, monto y fecha son obligatorios'); return; }
   fetch('gastos.php', {

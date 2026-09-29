@@ -196,6 +196,7 @@ try {
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <a href="nueva_orden.php" class="back-btn">+ Nueva Orden</a>
         <a href="#" onclick="calzoneRapido(); return false;" class="btn-calzone-rapido">🧀 Calzone ₡1000</a>
+        <a href="#" onclick="abrirModalGasto(); return false;" style="background:#c62828; color:white; padding:8px 12px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px;">💸 Gasto</a>
         <a href="arqueo_caja.php" style="background:#ff9800; color:white; padding:8px 12px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px;">💰 Cierre</a>
         <a href="logout.php" style="background:#c62828; color:white; padding:8px 12px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px;">Salir</a>
     </div>
@@ -560,6 +561,121 @@ function confirmarCalzoneRapido() {
 
 </script>
 
+<!-- Modal registrar gasto -->
+<div id="modal_gasto" class="modal-overlay">
+    <div class="modal-box" style="max-width:420px">
+        <div class="modal-header">
+            <span class="modal-titulo" style="color:#c62828">💸 Registrar gasto</span>
+            <button class="modal-close" onclick="cerrarModalGasto()">×</button>
+        </div>
+
+        <div style="margin-bottom:12px">
+            <label style="display:block;font-size:13px;font-weight:bold;color:#555;margin-bottom:5px">¿En qué se gastó?</label>
+            <input type="text" id="gasto_concepto" maxlength="120" placeholder="Ej: Hielo, taxi, bolsas" autocomplete="off"
+                   style="width:100%;padding:11px;border:2px solid #ddd;border-radius:5px;font-size:15px">
+        </div>
+
+        <div style="margin-bottom:12px">
+            <label style="display:block;font-size:13px;font-weight:bold;color:#555;margin-bottom:5px">Monto (₡)</label>
+            <input type="text" id="gasto_monto" inputmode="numeric" placeholder="0" autocomplete="off"
+                   style="width:100%;padding:11px;border:2px solid #ddd;border-radius:5px;font-size:19px;text-align:center">
+        </div>
+
+        <div style="margin-bottom:12px">
+            <label style="display:block;font-size:13px;font-weight:bold;color:#555;margin-bottom:5px">¿Con qué se pagó?</label>
+            <div style="display:flex;gap:6px">
+                <button type="button" class="gasto-met" data-met="efectivo" onclick="selMetodoGasto(this)">💵 Efectivo</button>
+                <button type="button" class="gasto-met" data-met="sinpe"    onclick="selMetodoGasto(this)">📌 SINPE</button>
+                <button type="button" class="gasto-met" data-met="tarjeta"  onclick="selMetodoGasto(this)">💳 Tarjeta</button>
+            </div>
+        </div>
+
+        <div style="margin-bottom:12px">
+            <label style="display:block;font-size:13px;font-weight:bold;color:#555;margin-bottom:5px">Categoría</label>
+            <select id="gasto_categoria" style="width:100%;padding:11px;border:2px solid #ddd;border-radius:5px;font-size:15px">
+                <option value="ingredientes">Ingredientes</option>
+                <option value="servicios">Servicios</option>
+                <option value="personal">Personal</option>
+                <option value="equipos">Equipos</option>
+                <option value="marketing">Marketing</option>
+                <option value="otros" selected>Otros</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom:12px">
+            <label style="display:block;font-size:13px;font-weight:bold;color:#555;margin-bottom:5px">Nota (opcional)</label>
+            <input type="text" id="gasto_nota" maxlength="200" placeholder="Detalle, proveedor..." autocomplete="off"
+                   style="width:100%;padding:10px;border:2px solid #ddd;border-radius:5px;font-size:14px">
+        </div>
+
+        <button onclick="guardarGasto()" style="width:100%;padding:13px;background:#c62828;color:white;border:none;border-radius:5px;font-size:16px;font-weight:bold;cursor:pointer;margin-bottom:6px">
+            Guardar gasto
+        </button>
+        <button class="btn-cerrar" onclick="cerrarModalGasto()">Cancelar</button>
+    </div>
+</div>
+
+<style>
+.gasto-met {
+    flex:1; padding:11px 4px; border:2px solid #ddd; border-radius:5px;
+    background:#f5f5f5; font-size:13px; font-weight:bold; cursor:pointer;
+}
+.gasto-met.sel { background:#c62828; color:white; border-color:#c62828; }
+</style>
+
+<script>
+let metodoGasto = null;
+
+function abrirModalGasto() {
+    document.getElementById('gasto_concepto').value = '';
+    document.getElementById('gasto_monto').value    = '';
+    document.getElementById('gasto_nota').value     = '';
+    document.getElementById('gasto_categoria').value = 'otros';
+    document.querySelectorAll('.gasto-met').forEach(b => b.classList.remove('sel'));
+    metodoGasto = null;
+    document.getElementById('modal_gasto').style.display = 'block';
+}
+
+function cerrarModalGasto() {
+    document.getElementById('modal_gasto').style.display = 'none';
+}
+
+function selMetodoGasto(btn) {
+    document.querySelectorAll('.gasto-met').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+    metodoGasto = btn.dataset.met;
+}
+
+function guardarGasto() {
+    const concepto = document.getElementById('gasto_concepto').value.trim();
+    const monto    = parseInt(document.getElementById('gasto_monto').value.replace(/\D/g, ''), 10) || 0;
+
+    if(!concepto)     { mostrarNotificacion('Escribí en qué se gastó', 'error'); return; }
+    if(monto <= 0)    { mostrarNotificacion('Escribí el monto', 'error'); return; }
+    if(!metodoGasto)  { mostrarNotificacion('Elegí con qué se pagó', 'error'); return; }
+
+    fetch('registrar_gasto.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            concepto:    concepto,
+            categoria:   document.getElementById('gasto_categoria').value,
+            monto:       monto,
+            metodo_pago: metodoGasto,
+            nota:        document.getElementById('gasto_nota').value.trim()
+        })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if(d.success) {
+            mostrarNotificacion('Gasto registrado');
+            cerrarModalGasto();
+        } else {
+            mostrarNotificacion('Error: ' + d.error, 'error');
+        }
+    });
+}
+</script>
 
 </body>
 </html>

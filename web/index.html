@@ -867,6 +867,9 @@
             <h3>Pizzas 2×1</h3>
             <span class="badge badge-red">¡Llevate dos!</span>
           </div>
+          <p style="font-size:13px;opacity:.75;margin:-4px 0 10px">
+            La primera pizza va de Jamón y Queso. Cambiarla de sabor cuesta ₡1.000 más.
+          </p>
           <div class="sizes-table cols4">
             <div class="sz"><div class="sz-name">Pequeña</div><div class="sz-info">6 c/u</div><div class="sz-price">₡8,500</div><button class="add-btn small" onclick='abrirSelectorSabor("Pizza 2x1 Pequeña", 8500, SABORES_PIZZA, 2)'>+</button></div>
             <div class="sz"><div class="sz-name">Mediana</div><div class="sz-info">8 c/u</div><div class="sz-price">₡12,500</div><button class="add-btn small" onclick='abrirSelectorSabor("Pizza 2x1 Mediana", 12500, SABORES_PIZZA, 2)'>+</button></div>
@@ -877,21 +880,24 @@
 
         <div class="tags-block">
           <h3>Sabores disponibles</h3>
+          <p style="font-size:13px;opacity:.75;margin:-4px 0 10px">
+            Los sabores marcados con ★ tienen un recargo de ₡2.000.
+          </p>
           <div class="tags">
-            <span class="tag">Birria</span>
+            <span class="tag">★ Birria</span>
             <span class="tag">Brasileña</span>
-            <span class="tag">Camarones</span>
+            <span class="tag">★ Camarones</span>
             <span class="tag">Canadiense</span>
             <span class="tag">Chicharrón</span>
             <span class="tag">Hawaiana</span>
             <span class="tag">Jamón y Hongos</span>
             <span class="tag">Jamón y Queso</span>
-            <span class="tag">Mar y Tierra</span>
+            <span class="tag">★ Mar y Tierra</span>
             <span class="tag">Mexicana</span>
             <span class="tag">Napolitana</span>
             <span class="tag">Pepperoni</span>
             <span class="tag">Pollo</span>
-            <span class="tag">Salsa Blanca</span>
+            <span class="tag">★ Salsa Blanca</span>
             <span class="tag">Solo Carnes</span>
             <span class="tag">Suprema</span>
             <span class="tag">Vegetariana</span>
@@ -1396,11 +1402,11 @@
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
+    const ENVIO_POR_KM = 500;
+
+    // Se cobra por kilómetro, redondeando hacia arriba (2,3 km cuentan como 3)
     function calcularTarifaEnvio(km) {
-      if (km <= 3) return 500;
-      if (km <= 6) return 1000;
-      if (km <= 10) return 1500;
-      return null;
+      return Math.max(1, Math.ceil(km)) * ENVIO_POR_KM;
     }
 
     function calcularEnvio() {
@@ -1423,16 +1429,11 @@
           const sede = SEDE_COORDS[sedeSeleccionada];
           const km = distanciaKm(pos.coords.latitude, pos.coords.longitude, sede.lat, sede.lng);
           const tarifa = calcularTarifaEnvio(km);
-          if (tarifa === null) {
-            box.className = 'envio-info warn';
-            box.textContent = '📍 Estás a ' + km.toFixed(1) + ' km — fuera de nuestra zona automática. El costo de envío se confirmará por WhatsApp.';
-            envioConfirmarWhatsapp = true;
-            costoEnvioActual = 0;
-          } else {
-            box.className = 'envio-info ok';
-            box.textContent = '📍 Distancia: ' + km.toFixed(1) + ' km · Envío: ₡' + tarifa.toLocaleString('es-CR');
-            costoEnvioActual = tarifa;
-          }
+          const kmCobrados = Math.max(1, Math.ceil(km));
+          box.className = 'envio-info ok';
+          box.textContent = '📍 Distancia: ' + km.toFixed(1) + ' km · Envío: ₡' + tarifa.toLocaleString('es-CR') +
+                            ' (' + kmCobrados + ' km × ₡' + ENVIO_POR_KM.toLocaleString('es-CR') + ')';
+          costoEnvioActual = tarifa;
           actualizarTotales();
         },
         () => {
@@ -1624,28 +1625,110 @@
 
     // Selector de sabor (modal)
     let saborPendiente = null;
+    // Mismas reglas que se cobran en el local
+    const SABORES_PREMIUM   = { 'Birria': 2000, 'Camarones': 2000, 'Mar y Tierra': 2000, 'Salsa Blanca': 2000 };
+    const PIZZA_2X1_INCLUIDA = 'Jamón y Queso';
+    const COSTO_CAMBIO_P1    = 1000;
+
+    function recargoSabor(nombre) {
+      return SABORES_PREMIUM[nombre] || 0;
+    }
+
+    function opcionesHtml(opciones, conRecargo) {
+      return opciones.map(o => {
+        const extra = conRecargo ? recargoSabor(o) : 0;
+        const txt = extra ? o + '  (+₡' + extra.toLocaleString('es-CR') + ')' : o;
+        return '<option value="' + o + '">' + txt + '</option>';
+      }).join('');
+    }
+
     function abrirSelectorSabor(nombreBase, precio, opciones, cantidadSabores) {
-      saborPendiente = { nombreBase, precio };
+      const esPizza = (opciones === SABORES_PIZZA);
+      const es2x1   = esPizza && cantidadSabores === 2;
+      saborPendiente = { nombreBase, precio, esPizza, es2x1 };
+
       document.getElementById('saborTitulo').textContent = nombreBase;
-      document.getElementById('saborPrecio').textContent = '₡' + precio.toLocaleString('es-CR');
       const cont = document.getElementById('saborSelectsContainer');
       cont.innerHTML = '';
-      for (let i = 0; i < cantidadSabores; i++) {
-        const label = cantidadSabores > 1 ? ('Sabor ' + (i + 1)) : 'Sabor';
-        cont.innerHTML += '<div class="cf-group"><label class="cf-label">' + label + '</label>' +
-          '<select class="cf-select sabor-select">' +
-          opciones.map(o => '<option value="' + o + '">' + o + '</option>').join('') +
-          '</select></div>';
+
+      if (es2x1) {
+        // La primera pizza siempre viene Jamón y Queso; cambiarla tiene costo
+        cont.innerHTML =
+          '<div class="cf-group">' +
+            '<label class="cf-label">Pizza 1 — ' + PIZZA_2X1_INCLUIDA + ' incluida</label>' +
+            '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">' +
+              '<input type="checkbox" id="cambiarP1" onchange="toggleCambioP1()" style="width:16px;height:16px">' +
+              'Cambiar a otro sabor (+₡' + COSTO_CAMBIO_P1.toLocaleString('es-CR') + ')' +
+            '</label>' +
+            '<select class="cf-select sabor-select" id="selP1" onchange="recalcularSabor()" style="display:none;margin-top:8px">' +
+              opcionesHtml(opciones, true) +
+            '</select>' +
+          '</div>' +
+          '<div class="cf-group">' +
+            '<label class="cf-label">Pizza 2 — elegí el sabor</label>' +
+            '<select class="cf-select sabor-select" id="selP2" onchange="recalcularSabor()">' +
+              opcionesHtml(opciones, true) +
+            '</select>' +
+          '</div>';
+      } else {
+        for (let i = 0; i < cantidadSabores; i++) {
+          const label = cantidadSabores > 1 ? ('Sabor ' + (i + 1)) : 'Sabor';
+          cont.innerHTML += '<div class="cf-group"><label class="cf-label">' + label + '</label>' +
+            '<select class="cf-select sabor-select" onchange="recalcularSabor()">' +
+            opcionesHtml(opciones, esPizza) +
+            '</select></div>';
+        }
       }
+
+      recalcularSabor();
       document.getElementById('saborModalOverlay').classList.add('open');
     }
+
+    function toggleCambioP1() {
+      const sel = document.getElementById('selP1');
+      sel.style.display = document.getElementById('cambiarP1').checked ? 'block' : 'none';
+      recalcularSabor();
+    }
+
+    // Devuelve el precio final y los sabores elegidos
+    function calcularSabor() {
+      const s = saborPendiente;
+      let total = s.precio;
+      let sabores = [];
+
+      if (s.es2x1) {
+        const cambia = document.getElementById('cambiarP1').checked;
+        const p1 = cambia ? document.getElementById('selP1').value : PIZZA_2X1_INCLUIDA;
+        const p2 = document.getElementById('selP2').value;
+        if (cambia) total += COSTO_CAMBIO_P1 + recargoSabor(p1);
+        total += recargoSabor(p2);
+        sabores = ['P1: ' + p1, 'P2: ' + p2];
+      } else {
+        Array.from(document.querySelectorAll('.sabor-select')).forEach(sel => {
+          sabores.push(sel.value);
+          if (s.esPizza) total += recargoSabor(sel.value);
+        });
+      }
+      return { total, nota: sabores.join(' + ') };
+    }
+
+    function recalcularSabor() {
+      if (!saborPendiente) return;
+      const r = calcularSabor();
+      const extra = r.total - saborPendiente.precio;
+      document.getElementById('saborPrecio').innerHTML =
+        '₡' + r.total.toLocaleString('es-CR') +
+        (extra > 0 ? ' <span style="font-size:13px;opacity:.75">(base ₡' + saborPendiente.precio.toLocaleString('es-CR') +
+                     ' + ₡' + extra.toLocaleString('es-CR') + ')</span>' : '');
+    }
+
     function cerrarSelectorSabor() {
       document.getElementById('saborModalOverlay').classList.remove('open');
     }
+
     function confirmarSelectorSabor() {
-      const selects = document.querySelectorAll('.sabor-select');
-      const sabores = Array.from(selects).map(s => s.value);
-      agregarAlCarrito(saborPendiente.nombreBase, saborPendiente.precio, sabores.join(' + '));
+      const r = calcularSabor();
+      agregarAlCarrito(saborPendiente.nombreBase, r.total, r.nota);
       cerrarSelectorSabor();
     }
 

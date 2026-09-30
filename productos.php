@@ -194,8 +194,10 @@ try {
         </div>
         <?php endif; ?>
 
+        <?php /* Cobro manual desactivado. Para volver a activarlo, sacale los
+                 comentarios a este bloque: el modal y su código siguen abajo.
+
         <?php if($categoria_id == 10): ?>
-        <!-- Cobro manual para ventas fuera del sistema -->
         <div style="max-width: 900px; margin: 0 auto 12px;">
             <div class="producto-card" style="background:#fff; border:3px dashed #9c27b0; border-radius:10px; padding:15px; cursor:pointer; text-align:center;"
                  onclick="abrirModalManual()">
@@ -204,6 +206,8 @@ try {
             </div>
         </div>
         <?php endif; ?>
+
+        */ ?>
 
         <!-- Productos simples -->
         <div class="productos-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; max-width: 900px; margin: 0 auto;">

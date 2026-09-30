@@ -100,6 +100,22 @@ $pagQ->execute($paramsBase);
 $porMetodo = ['efectivo'=>0,'sinpe'=>0,'tarjeta'=>0];
 foreach($pagQ->fetchAll() as $r) $porMetodo[$r['metodo_pago']] = (float)$r['total'];
 
+// Calzones del día: los vendidos sueltos ('Calzone ...') y los que vienen
+// dentro de un combo, que en la descripción quedan como 'Calzone: sabor'
+$calzQ = $conn->prepare("
+  SELECT
+    COALESCE(SUM(CASE WHEN d.producto_nombre LIKE 'Calzone%' THEN d.cantidad ELSE 0 END), 0) AS sueltos,
+    COALESCE(SUM(CASE WHEN d.producto_nombre LIKE '%Calzone%'
+                       AND d.producto_nombre NOT LIKE 'Calzone%' THEN d.cantidad ELSE 0 END), 0) AS en_combos
+  FROM detalle_orden d JOIN ordenes o ON d.orden_id = o.id
+  WHERE {$whereBase}
+");
+$calzQ->execute($paramsBase);
+$calz = $calzQ->fetch();
+$calzSueltos = (int)($calz['sueltos'] ?? 0);
+$calzCombos  = (int)($calz['en_combos'] ?? 0);
+$calzTotal   = $calzSueltos + $calzCombos;
+
 // ── Eliminadas del día
 $eWhere  = ["DATE(fecha) = ?"];
 $eParams = [$fecha];
@@ -231,6 +247,17 @@ function urlHist($cambios) {
     <div class="ec">
       <div class="ec-head" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
         <span>Órdenes del día</span>
+        <span style="display:flex;align-items:center;gap:6px;margin-left:auto;margin-right:8px;
+                     background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;padding:5px 10px">
+          <span style="font-size:15px">🥟</span>
+          <strong style="color:#e65100;font-size:15px"><?= $calzTotal ?></strong>
+          <span style="font-size:12px;color:#8d6e63">
+            calzone<?= $calzTotal === 1 ? '' : 's' ?>
+            <?php if($calzCombos > 0): ?>
+              (<?= $calzSueltos ?> suelto<?= $calzSueltos === 1 ? '' : 's' ?> + <?= $calzCombos ?> en combo<?= $calzCombos === 1 ? '' : 's' ?>)
+            <?php endif; ?>
+          </span>
+        </span>
         <form method="get" style="display:flex;gap:6px;margin:0">
           <input type="hidden" name="tab" value="completadas">
           <input type="hidden" name="fecha" value="<?= $fecha ?>">

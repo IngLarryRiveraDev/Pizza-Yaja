@@ -48,6 +48,8 @@ try {
     }
 
     $orden_id = $_SESSION['orden_actual'];
+    require_once 'solicitudes_fn.php';
+    bloquearSiPendiente($conn, $orden_id);
     
     // Verificar si el producto ya existe en la orden (comparando producto_nombre y notas)
     $stmt = $conn->prepare("

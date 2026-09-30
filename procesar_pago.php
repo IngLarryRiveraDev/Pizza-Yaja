@@ -22,10 +22,12 @@ if($orden_id <= 0) {
 // ConexiÃ³n BD
 require_once 'config.php';
 require_once 'descontar_ingredientes_fn.php';
+require_once 'solicitudes_fn.php';
 
 try {
     $conn = getConnection();
-    
+    bloquearSiPendiente($conn, $orden_id);
+
     // Iniciar transacciÃ³n
     $conn->beginTransaction();
     

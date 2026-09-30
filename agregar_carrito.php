@@ -20,9 +20,11 @@ $datos = json_decode(file_get_contents('php://input'), true);
 
 // ConexiÃ³n BD
 require_once 'config.php';
+require_once 'solicitudes_fn.php';
 
 try {
     $conn = getConnection();
+    bloquearSiPendiente($conn, $orden_id);
     
     // Construir descripciÃ³n del producto
     $producto_nombre = '';

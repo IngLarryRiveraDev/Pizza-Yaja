@@ -15,66 +15,61 @@ if($orden_id <= 0) {
 }
 
 require_once 'config.php';
+require_once 'solicitudes_fn.php';
 try {
     $conn = getConnection();
+    setupSolicitudes($conn);
 
-    // Auto-crear tabla de log si no existe
-    $conn->exec("
-        CREATE TABLE IF NOT EXISTS log_eliminaciones (
-            id             INT AUTO_INCREMENT PRIMARY KEY,
-            orden_id       INT,
-            numero_orden   INT,
-            nombre_cliente VARCHAR(200),
-            total          DECIMAL(10,2),
-            motivo         TEXT NOT NULL,
-            eliminado_por  VARCHAR(100),
-            fecha          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ");
-
-    // Obtener datos de la orden antes de eliminar
     $stmt = $conn->prepare("SELECT * FROM ordenes WHERE id=?");
     $stmt->execute([$orden_id]);
     $orden = $stmt->fetch();
     if(!$orden) { echo json_encode(['success'=>false,'error'=>'Orden no encontrada']); exit; }
 
-    // Contar productos
     $cntQ = $conn->prepare("SELECT COUNT(*) FROM detalle_orden WHERE orden_id=?");
     $cntQ->execute([$orden_id]);
     $tieneProductos = (int)$cntQ->fetchColumn() > 0;
 
-    // Si tiene productos, motivo obligatorio
-    if($tieneProductos && $motivo === '') {
+    $es_admin = ($_SESSION['rol'] ?? '') === 'admin';
+
+    // Una orden vacía no tiene nada que revisar: se borra de una
+    if(!$tieneProductos || $es_admin) {
+        if($tieneProductos && $motivo === '') {
+            echo json_encode(['success'=>false,'error'=>'motivo_requerido']); exit;
+        }
+        if($tieneProductos) {
+            eliminarOrdenAprobada($conn, $orden_id, $motivo, $_SESSION['nombre']);
+        } else {
+            $conn->prepare("DELETE FROM pagos         WHERE orden_id=?")->execute([$orden_id]);
+            $conn->prepare("DELETE FROM detalle_orden WHERE orden_id=?")->execute([$orden_id]);
+            $conn->prepare("DELETE FROM ordenes       WHERE id=?")->execute([$orden_id]);
+        }
+        if(isset($_SESSION['orden_actual']) && $_SESSION['orden_actual'] == $orden_id) {
+            unset($_SESSION['orden_actual']);
+        }
+        echo json_encode(['success'=>true, 'eliminada'=>true]);
+        exit;
+    }
+
+    // Con productos: la borra la administración, no el camarero
+    if($motivo === '') {
         echo json_encode(['success'=>false,'error'=>'motivo_requerido']); exit;
     }
-
-    // Guardar en log si tenía productos
-    if($tieneProductos) {
-        try { $conn->exec("ALTER TABLE log_eliminaciones ADD COLUMN sucursal VARCHAR(20) NULL"); } catch(PDOException $e) {}
-        $conn->prepare("
-            INSERT INTO log_eliminaciones (orden_id, numero_orden, nombre_cliente, total, motivo, eliminado_por, sucursal)
-            VALUES (?,?,?,?,?,?,?)
-        ")->execute([
-            $orden_id,
-            $orden['numero_orden'],
-            $orden['nombre_cliente'],
-            $orden['total'],
-            $motivo,
-            $_SESSION['nombre'],
-            $orden['sucursal'] ?? null
-        ]);
+    if(solicitudEliminacionPendiente($conn, $orden_id)) {
+        echo json_encode(['success'=>false,'error'=>'Ya hay una solicitud esperando respuesta para esta orden']); exit;
     }
 
-    // Eliminar en cascada
-    $conn->prepare("DELETE FROM pagos        WHERE orden_id=?")->execute([$orden_id]);
-    $conn->prepare("DELETE FROM detalle_orden WHERE orden_id=?")->execute([$orden_id]);
-    $conn->prepare("DELETE FROM ordenes       WHERE id=?")->execute([$orden_id]);
+    $conn->prepare("
+        INSERT INTO solicitudes (tipo, orden_id, numero_orden, usuario_id, sucursal, motivo)
+        VALUES ('eliminacion', ?, ?, ?, ?, ?)
+    ")->execute([
+        $orden_id,
+        $orden['numero_orden'],
+        $_SESSION['usuario_id'],
+        $orden['sucursal'] ?? ($_SESSION['sucursal'] ?? 'cariari'),
+        $motivo
+    ]);
 
-    if(isset($_SESSION['orden_actual']) && $_SESSION['orden_actual'] == $orden_id) {
-        unset($_SESSION['orden_actual']);
-    }
-
-    echo json_encode(['success'=>true]);
+    echo json_encode(['success'=>true, 'eliminada'=>false, 'pendiente'=>true]);
 
 } catch(PDOException $e) {
     echo json_encode(['success'=>false,'error'=>$e->getMessage()]);

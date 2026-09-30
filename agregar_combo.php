@@ -41,6 +41,8 @@ try {
     }
 
     $orden_id = $_SESSION['orden_actual'];
+    require_once 'solicitudes_fn.php';
+    bloquearSiPendiente($conn, $orden_id);
 
     // Si ya existe el mismo combo en la orden, incrementar cantidad
     $stmt = $conn->prepare("

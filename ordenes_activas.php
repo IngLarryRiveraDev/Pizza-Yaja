@@ -13,6 +13,8 @@ require_once 'migrations.php';
 try {
     $conn = getConnection();
     setupSucursalColumns($conn);
+    setupCocinaColumns($conn);
+    require_once 'solicitudes_fn.php';
 
     $sucursal = $_SESSION['sucursal'] ?? 'cariari';
     $rol      = $_SESSION['rol']      ?? 'camarero';
@@ -34,6 +36,9 @@ try {
     }
     $ordenes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Órdenes esperando que la administración apruebe su eliminación
+    $bloqueadas = ordenesBloqueadas($conn, ($rol === 'admin' || $sucursal === 'ambas') ? null : $sucursal);
+
     // Construir datos completos para JS
     $ordenes_data = [];
     foreach($ordenes as $orden) {
@@ -53,6 +58,9 @@ try {
             'tipo_servicio'  => $orden['tipo_servicio'],
             'total'          => (float)$orden['total'],
             'estado'         => $orden['estado'],
+            'cocina_estado'  => (int)($orden['cocina_estado'] ?? 0),
+            'bloqueada'      => isset($bloqueadas[(int)$orden['id']]),
+            'motivo_bloqueo' => $bloqueadas[(int)$orden['id']] ?? null,
             'fecha_creacion' => $orden['fecha_creacion'],
             'esta_pagada'    => $esta_pagada,
             'detalles'       => $detalles
@@ -212,9 +220,9 @@ try {
         <?php foreach($ordenes_data as $o): ?>
             <?php
             $clase = '';
-            if($o['esta_pagada'])           $clase = 'pagado';
-            if($o['estado'] == 'en_cocina') $clase = 'en-cocina';
-            if($o['estado'] == 'listo')     $clase = 'lista';
+            if($o['esta_pagada'])         $clase = 'pagado';
+            if($o['cocina_estado'] == 1)  $clase = 'en-cocina';
+            if($o['cocina_estado'] == 2)  $clase = 'lista';
             $nombre = ($o['nombre_cliente'] && !in_array($o['nombre_cliente'], ['Sin asignar', 'Orden Automática']))
                 ? htmlspecialchars($o['nombre_cliente']) : '';
             ?>
@@ -232,10 +240,13 @@ try {
                     <span class="estado-badge <?php echo $o['esta_pagada'] ? 'badge-pagado' : 'badge-pendiente'; ?>">
                         <?php echo $o['esta_pagada'] ? '✓ Pagado' : '⏳ Pend.'; ?>
                     </span>
-                    <?php if($o['estado'] == 'en_cocina'): ?>
+                    <?php if($o['cocina_estado'] == 1): ?>
                         <span class="estado-badge badge-cocina">👨‍🍳 Cocina</span>
-                    <?php elseif($o['estado'] == 'listo'): ?>
+                    <?php elseif($o['cocina_estado'] == 2): ?>
                         <span class="estado-badge badge-listo-cocina">✅ Listo</span>
+                    <?php endif; ?>
+                    <?php if($o['bloqueada']): ?>
+                        <span class="estado-badge" style="background:#e53935;color:#fff">🔒 Esperando</span>
                     <?php endif; ?>
                 </div>
 
@@ -290,9 +301,9 @@ try {
 <!-- Modal eliminar con motivo -->
 <div id="modal_eliminar" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:2000;align-items:center;justify-content:center">
     <div style="background:#fff;border-radius:10px;width:90%;max-width:400px;padding:20px">
-        <h3 style="color:#c62828;margin-bottom:4px">🗑️ Eliminar orden</h3>
+        <h3 style="color:#c62828;margin-bottom:4px">🗑️ Solicitar eliminación</h3>
         <p id="elimModal_orden" style="font-weight:bold;color:#333;margin-bottom:12px"></p>
-        <p style="font-size:13px;color:#555;margin-bottom:10px">Esta orden tiene productos. Indicá el motivo de eliminación para que quede registrado.</p>
+        <p style="font-size:13px;color:#555;margin-bottom:10px">Esta orden tiene productos, así que la elimina la administración. Escribí el motivo: la orden queda trabada hasta que respondan.</p>
         <input type="hidden" id="elimModal_id">
         <textarea id="elimModal_motivo" rows="3"
             style="width:100%;padding:10px;border:2px solid #ddd;border-radius:6px;font-size:14px;resize:vertical;font-family:inherit"
@@ -365,7 +376,18 @@ function abrirOrden(id) {
 
     // Botones
     let btns = '';
-    if(!['en_cocina', 'listo'].includes(o.estado)) {
+    if(o.bloqueada) {
+        const motivo = (o.motivo_bloqueo || '—').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        document.getElementById('modal_btns').innerHTML =
+            `<div style="flex:1;background:#ffebee;border:2px solid #e53935;border-radius:6px;padding:12px;text-align:center">
+                <div style="color:#c62828;font-weight:bold;margin-bottom:4px">🔒 Esperando respuesta</div>
+                <div style="color:#555;font-size:13px">Se pidió eliminar esta orden. No se puede cobrar ni modificar hasta que la administración responda.</div>
+                <div style="color:#888;font-size:12px;margin-top:6px">Motivo: ${motivo}</div>
+             </div>`;
+        document.getElementById('modal_orden').style.display = 'block';
+        return;
+    }
+    if(o.cocina_estado == 0) {
         btns += `<button class="btn btn-cocina" onclick="enviarACocina(${o.id})">📤 Cocina</button>`;
     }
     if(!o.esta_pagada) {
@@ -434,7 +456,10 @@ function confirmarEliminar() {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({orden_id: id, motivo})
     }).then(r=>r.json()).then(d => {
-        if(d.success) { location.reload(); }
+        if(d.success) {
+            if(d.pendiente) alert('Solicitud enviada. La orden queda trabada hasta que la administración responda.');
+            location.reload();
+        }
         else alert('Error: ' + d.error);
     });
 }

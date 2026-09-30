@@ -15,10 +15,16 @@ try {
     $sucursal = $_SESSION['sucursal'] ?? 'cariari';
     $rol      = $_SESSION['rol']      ?? 'camarero';
 
+    require_once 'migrations.php';
+    setupCocinaColumns($conn);
+
+    // Cocina la marcó lista y la orden sigue en el salón (aunque ya esté cobrada)
+    $activa = "cocina_estado = 2 AND estado IN ('en_cocina','listo','pagado')";
+
     if($rol === 'admin' || $sucursal === 'ambas') {
-        $stmt = $conn->query("SELECT id, numero_orden FROM ordenes WHERE estado = 'listo' ORDER BY id");
+        $stmt = $conn->query("SELECT id, numero_orden FROM ordenes WHERE {$activa} ORDER BY id");
     } else {
-        $stmt = $conn->prepare("SELECT id, numero_orden FROM ordenes WHERE estado = 'listo' AND sucursal = ? ORDER BY id");
+        $stmt = $conn->prepare("SELECT id, numero_orden FROM ordenes WHERE {$activa} AND sucursal = ? ORDER BY id");
         $stmt->execute([$sucursal]);
     }
 

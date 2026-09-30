@@ -11,8 +11,10 @@ $orden_id = (int)($_SESSION['orden_actual'] ?? 0);
 
 if($item_id > 0 && $orden_id > 0) {
     require_once 'config.php';
+    require_once 'solicitudes_fn.php';
     try {
         $conn = getConnection();
+        bloquearSiPendiente($conn, $orden_id);
         $stmt = $conn->prepare("DELETE FROM detalle_orden WHERE id = ? AND orden_id = ?");
         $stmt->execute([$item_id, $orden_id]);
         $stmt = $conn->prepare("

@@ -19,9 +19,19 @@ require_once 'config.php';
 
 try {
     $conn = getConnection();
-    // Cambia estado a 'en_cocina' y resetea la notificación
-    // (por si la orden ya fue enviada antes, el timbre vuelve a sonar)
-    $stmt = $conn->prepare("UPDATE ordenes SET estado = 'en_cocina', cocina_notificado = 0 WHERE id = ?");
+    require_once 'migrations.php';
+    require_once 'solicitudes_fn.php';
+    setupCocinaColumns($conn);
+    bloquearSiPendiente($conn, $orden_id);
+
+    // Entra a cocina y se resetea la notificación, para que el timbre vuelva a
+    // sonar si la orden ya había sido enviada antes
+    $stmt = $conn->prepare("
+        UPDATE ordenes
+        SET cocina_estado = 1, cocina_notificado = 0,
+            estado = CASE WHEN estado = 'pendiente' THEN 'en_cocina' ELSE estado END
+        WHERE id = ?
+    ");
     $stmt->execute([$orden_id]);
     echo json_encode(['success' => true]);
 } catch(PDOException $e) {

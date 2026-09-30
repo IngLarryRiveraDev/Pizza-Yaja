@@ -17,18 +17,21 @@ try {
     $sucursal = $_SESSION['sucursal'] ?? 'cariari';
     $rol      = $_SESSION['rol']      ?? 'cocina';
 
+    setupCocinaColumns($conn);
+
+    // Sale de cocina solo cuando el cocinero la marca lista, sin importar si ya se cobró
     if($rol === 'admin') {
         $stmt = $conn->query("
             SELECT id, numero_orden, nombre_cliente, tipo_servicio, total, fecha_creacion, cocina_notificado
             FROM ordenes
-            WHERE estado = 'en_cocina'
+            WHERE cocina_estado = 1
             ORDER BY fecha_creacion ASC
         ");
     } else {
         $stmt = $conn->prepare("
             SELECT id, numero_orden, nombre_cliente, tipo_servicio, total, fecha_creacion, cocina_notificado
             FROM ordenes
-            WHERE estado = 'en_cocina'
+            WHERE cocina_estado = 1
               AND sucursal = ?
             ORDER BY fecha_creacion ASC
         ");

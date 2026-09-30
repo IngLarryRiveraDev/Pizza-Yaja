@@ -19,8 +19,17 @@ require_once 'config.php';
 
 try {
     $conn = getConnection();
-    // Marca la orden como lista → desaparece de cocina, el camarero la ve como "LISTA"
-    $stmt = $conn->prepare("UPDATE ordenes SET estado = 'listo' WHERE id = ?");
+    require_once 'migrations.php';
+    setupCocinaColumns($conn);
+
+    // Cocina terminó: sale de la pantalla de cocina y el camarero la ve LISTA.
+    // El estado de pago no se toca, por si ya estaba cobrada.
+    $stmt = $conn->prepare("
+        UPDATE ordenes
+        SET cocina_estado = 2,
+            estado = CASE WHEN estado = 'en_cocina' THEN 'listo' ELSE estado END
+        WHERE id = ?
+    ");
     $stmt->execute([$orden_id]);
     echo json_encode(['success' => true]);
 } catch(PDOException $e) {

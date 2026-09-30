@@ -16,9 +16,11 @@ if($orden_id <= 0) {
 
 require_once 'config.php';
 require_once 'descontar_ingredientes_fn.php';
+require_once 'solicitudes_fn.php';
 
 try {
     $conn = getConnection();
+    bloquearSiPendiente($conn, $orden_id);
 
     // Verificar que la orden existe y está pagada
     $stmt = $conn->prepare("SELECT total FROM ordenes WHERE id = ?");

@@ -235,6 +235,18 @@ function sucUrl($s) {
     <?= navItem('index.php',      '📊', 'Dashboard',   $currentPage) ?>
 
     <div class="erp-nav-sec">Operaciones</div>
+    <?php
+    $pend_sol = 0;
+    try {
+        $pend_sol = (int)$GLOBALS['conn']->query("SELECT COUNT(*) FROM solicitudes WHERE estado = 'pendiente'")->fetchColumn();
+    } catch(Throwable $e) {}
+    ?>
+    <a href="solicitudes.php" class="erp-nav-item <?= $currentPage === 'solicitudes.php' ? 'active' : '' ?>">
+      <span class="ni">🔔</span>Solicitudes
+      <?php if($pend_sol > 0): ?>
+        <span style="margin-left:auto;background:#e53935;color:#fff;border-radius:50px;padding:1px 7px;font-size:11px;font-weight:700"><?= $pend_sol ?></span>
+      <?php endif; ?>
+    </a>
     <?= navItem('ventas.php',     '📈', 'Ventas',      $currentPage) ?>
     <?= navItem('historial.php',  '📋', 'Historial',   $currentPage) ?>
     <?= navItem('cierres.php',    '💰', 'Cierres',     $currentPage) ?>

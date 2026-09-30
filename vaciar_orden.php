@@ -10,8 +10,10 @@ $orden_id = $_SESSION['orden_actual'] ?? 0;
 
 if($orden_id > 0) {
     require_once 'config.php';
+    require_once 'solicitudes_fn.php';
     try {
         $conn = getConnection();
+        bloquearSiPendiente($conn, $orden_id);
         $stmt = $conn->prepare("DELETE FROM detalle_orden WHERE orden_id = ?");
         $stmt->execute([$orden_id]);
         $stmt = $conn->prepare("UPDATE ordenes SET total = 0 WHERE id = ?");

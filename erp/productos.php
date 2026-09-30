@@ -83,7 +83,13 @@ try { $conn->exec("ALTER TABLE productos ADD COLUMN descripcion TEXT");         
 try { $conn->exec("ALTER TABLE productos ADD COLUMN disponible TINYINT(1) NOT NULL DEFAULT 1");         } catch(PDOException $e) {}
 
 $productos  = $conn->query("SELECT * FROM productos ORDER BY categoria, nombre")->fetchAll();
-$cats_tabla = $conn->query("SELECT id, nombre FROM categorias ORDER BY orden, nombre")->fetchAll();
+// Combos (3), Combos Personales (4) y Promociones (11) no se arman acá:
+// el POS los toma de la tabla combos, que se administra en "Combos y Promos"
+$cats_tabla = $conn->query("
+    SELECT id, nombre FROM categorias
+    WHERE id NOT IN (3, 4, 11)
+    ORDER BY orden, nombre
+")->fetchAll();
 $categorias = array_unique(array_column($productos, 'categoria'));
 sort($categorias);
 
@@ -189,6 +195,10 @@ try {
           <?php endforeach; ?>
         </select>
         <input type="hidden" id="pCatNombre">
+        <p style="font-size:12px;color:#888;margin-top:5px;line-height:1.5">
+          Los combos y las promociones se crean en <a href="combos.php" style="color:var(--orange);font-weight:600">Combos y Promos</a>.<br>
+          En <strong>Pizza 2x1</strong> y <strong>Pizza Individual</strong> lo que agregues son <strong>sabores</strong>, no botones del menú.
+        </p>
       </div>
       <div id="pDisponibleWrap" style="display:none" class="ef-group">
         <label class="ef-label">Estado</label>

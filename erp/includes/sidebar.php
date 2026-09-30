@@ -255,7 +255,7 @@ function sucUrl($s) {
 
     <div class="erp-nav-sec">Configuración</div>
     <?= navItem('productos.php',  '🍕', 'Productos',   $currentPage) ?>
-    <?= navItem('combos.php',     '🎁', 'Combos',      $currentPage) ?>
+    <?= navItem('combos.php',     '🎁', 'Combos y Promos', $currentPage) ?>
     <?= navItem('usuarios.php',   '👥', 'Usuarios',    $currentPage) ?>
   </nav>
 

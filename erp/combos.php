@@ -116,7 +116,7 @@ $combos_promo = array_filter($todos_combos, fn($c) => $c['categoria_id'] == 11);
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Combos · Pizza Yaja ERP</title>
+<title>Combos y Promos · Pizza Yaja ERP</title>
 </head>
 <body class="erp">
 <?php include 'includes/sidebar.php'; ?>
@@ -124,7 +124,7 @@ $combos_promo = array_filter($todos_combos, fn($c) => $c['categoria_id'] == 11);
 <div class="erp-main">
   <div class="erp-topbar">
     <button class="erp-hbg" onclick="erpHbg()">☰</button>
-    <span class="erp-pg-title">🍕 Combos</span>
+    <span class="erp-pg-title">🎁 Combos y Promos</span>
     <div class="erp-topbar-right" style="display:flex;gap:8px">
       <button class="eb gry" onclick="abrirModal(null, 3)">+ Combo</button>
       <button class="eb ora" onclick="abrirModal(null, 4)">+ Combo Personal</button>

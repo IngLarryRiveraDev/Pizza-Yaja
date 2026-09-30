@@ -40,6 +40,8 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['success'=>true]);
 
         } elseif($accion === 'eliminar') {
+            // Las órdenes viejas guardan el nombre, así que el historial no se toca
+            try { $conn->prepare("DELETE FROM recetas WHERE producto_id=?")->execute([$d['id']]); } catch(PDOException $e) {}
             $stmt = $conn->prepare("DELETE FROM productos WHERE id=?");
             $stmt->execute([$d['id']]);
             echo json_encode(['success'=>true]);
@@ -152,6 +154,9 @@ try {
                   onclick="toggleDisponible(<?= $p['id'] ?>, this)">
                   <?= $p['disponible'] ? 'Deshabilitar' : 'Habilitar' ?>
                 </button>
+                <button class="eb gry" style="padding:5px 10px;font-size:12px;opacity:.7"
+                  onclick="eliminarProducto(<?= $p['id'] ?>, '<?= htmlspecialchars(addslashes($p['nombre']), ENT_QUOTES) ?>')"
+                  title="Eliminar definitivamente">🗑️</button>
               </td>
             </tr>
           <?php endforeach; ?>
@@ -295,6 +300,17 @@ function guardar() {
     method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify(body)
   }).then(r => r.json()).then(d => {
+    if(d.success) location.reload();
+    else alert('Error: ' + d.error);
+  });
+}
+
+function eliminarProducto(id, nombre) {
+  if(!confirm(`¿Eliminar "${nombre}" definitivamente?\n\nNo se puede deshacer. Las órdenes anteriores no se ven afectadas.\n\nSi solo se acabó por hoy, usá "Deshabilitar" en su lugar.`)) return;
+  fetch('productos.php', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({accion:'eliminar', id})
+  }).then(r=>r.json()).then(d => {
     if(d.success) location.reload();
     else alert('Error: ' + d.error);
   });

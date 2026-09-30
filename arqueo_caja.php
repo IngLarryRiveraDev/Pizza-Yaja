@@ -7,6 +7,9 @@ if(!isset($_SESSION['usuario_id'])) {
 }
 
 require_once 'config.php';
+require_once 'solicitudes_fn.php';
+
+const ESPERA_RECHAZO_MIN = 3; // minutos antes de poder pedirlo de nuevo
 
 $usuario_id = $_SESSION['usuario_id'];
 $sucursal   = $_SESSION['sucursal'] ?? 'cariari';
@@ -73,8 +76,52 @@ try {
     }
 } catch(PDOException $e) {}
 
+// ── Permiso de la administración para hacer el cierre ────────────────────────
+setupSolicitudes($conn);
+
+function ultimaSolicitudCierre($conn, $usuario_id) {
+    // Solo del día: una autorización de ayer no sirve para cerrar hoy
+    $q = $conn->prepare("
+        SELECT * FROM solicitudes
+        WHERE tipo = 'cierre' AND usuario_id = ? AND estado <> 'usada'
+          AND DATE(created_at) = CURDATE()
+        ORDER BY created_at DESC LIMIT 1
+    ");
+    $q->execute([$usuario_id]);
+    return $q->fetch(PDO::FETCH_ASSOC) ?: null;
+}
+
+// Pedir permiso
+if(($_POST['accion'] ?? '') === 'solicitar' && !$error) {
+    $previa = ultimaSolicitudCierre($conn, $usuario_id);
+    $puede  = true;
+    if($previa && $previa['estado'] === 'pendiente') $puede = false;
+    if($previa && $previa['estado'] === 'rechazada' && $previa['respondido_at']) {
+        $espera = strtotime($previa['respondido_at']) + ESPERA_RECHAZO_MIN * 60;
+        if(time() < $espera) $puede = false;
+    }
+    if($puede) {
+        $conn->prepare("
+            INSERT INTO solicitudes (tipo, usuario_id, sucursal, motivo)
+            VALUES ('cierre', ?, ?, 'Solicita hacer el cierre de caja')
+        ")->execute([$usuario_id, $sucursal]);
+    }
+    header('Location: arqueo_caja.php'); exit;
+}
+
+$solicitud  = ultimaSolicitudCierre($conn, $usuario_id);
+$aprobado   = $solicitud && $solicitud['estado'] === 'aprobada';
+$esperando  = $solicitud && $solicitud['estado'] === 'pendiente';
+$rechazado  = $solicitud && $solicitud['estado'] === 'rechazada';
+
+// Segundos que faltan para poder volver a pedirlo
+$espera_seg = 0;
+if($rechazado && $solicitud['respondido_at']) {
+    $espera_seg = max(0, strtotime($solicitud['respondido_at']) + ESPERA_RECHAZO_MIN * 60 - time());
+}
+
 // Procesar envío
-if($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
+if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'enviar' && !$error && $aprobado) {
     $fisico_efectivo = (float)str_replace(',', '.', $_POST['efectivo'] ?? 0);
     $fisico_sinpe    = (float)str_replace(',', '.', $_POST['sinpe']    ?? 0);
     $fisico_tarjeta  = (float)str_replace(',', '.', $_POST['tarjeta']  ?? 0);
@@ -136,6 +183,11 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
             $notas,
             $periodo_desde, $periodo_hasta
         ]);
+
+        // El permiso se consume: no sirve para un segundo cierre
+        $conn->prepare("UPDATE solicitudes SET estado = 'usada' WHERE id = ?")
+             ->execute([$solicitud['id']]);
+
         $enviado = true;
     } catch(PDOException $e) {
         if($e->getCode() == 23000) {
@@ -247,7 +299,63 @@ $suc_nombre = ['cariari'=>'Cariari','guapiles'=>'Guapiles'][$sucursal] ?? ucfirs
         </div>
         <a href="ordenes_activas.php" class="btn-volver">← Volver</a>
 
+    <?php elseif($esperando): ?>
+        <div class="estado-ok">
+            <div class="icon">⏳</div>
+            <h2 style="color:#ff9800">Esperando respuesta</h2>
+            <p>La administración tiene que autorizar tu cierre.<br>Esta pantalla se actualiza sola.</p>
+            <div style="color:#aaa;font-size:12px;margin-bottom:16px;">
+                Enviada a las <?= date('H:i', strtotime($solicitud['created_at'])) ?>
+            </div>
+            <a href="ordenes_activas.php" class="btn-volver" style="margin-top:0">← Seguir trabajando</a>
+        </div>
+        <script>setTimeout(() => location.reload(), 5000);</script>
+
+    <?php elseif(!$aprobado): ?>
+        <?php if($rechazado): ?>
+        <div class="alerta" style="border-color:#e53935">
+            <div class="icon">🚫</div>
+            <p><strong>La administración rechazó tu solicitud.</strong>
+            <?php if($solicitud['respuesta']): ?>
+                <br><span style="color:#c62828"><?= htmlspecialchars($solicitud['respuesta']) ?></span>
+            <?php endif; ?>
+            </p>
+        </div>
+        <?php endif; ?>
+
+        <p style="color:#888;font-size:13px;text-align:center;margin-bottom:16px;">
+            Para cerrar caja primero pedí autorización a la administración.
+        </p>
+
+        <?php if($espera_seg > 0): ?>
+            <div style="background:#f5f5f5;border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;">
+                <div style="color:#888;font-size:13px;">Podés volver a pedirlo en</div>
+                <div id="cuenta" style="font-size:28px;font-weight:bold;color:#555;font-family:monospace;">--:--</div>
+            </div>
+            <script>
+            let restan = <?= (int)$espera_seg ?>;
+            const pinta = () => {
+                const m = String(Math.floor(restan / 60)).padStart(2,'0');
+                const s = String(restan % 60).padStart(2,'0');
+                document.getElementById('cuenta').textContent = m + ':' + s;
+                if(restan-- <= 0) location.reload();
+            };
+            pinta();
+            setInterval(pinta, 1000);
+            </script>
+        <?php else: ?>
+            <form method="POST">
+                <input type="hidden" name="accion" value="solicitar">
+                <button type="submit" class="btn-enviar">Pedir autorización →</button>
+            </form>
+        <?php endif; ?>
+
+        <a href="ordenes_activas.php" class="btn-volver">← Volver</a>
+
     <?php else: ?>
+        <div style="background:#e8f5e9;border:2px solid #4caf50;border-radius:10px;padding:10px;text-align:center;margin-bottom:14px;">
+            <span style="color:#2e7d32;font-size:13px;font-weight:bold;">✓ Autorizado por la administración</span>
+        </div>
         <p style="color:#888;font-size:13px;text-align:center;margin-bottom:8px;">
             Ingresá los montos físicos contados al cierre.
         </p>
@@ -276,6 +384,7 @@ $suc_nombre = ['cariari'=>'Cariari','guapiles'=>'Guapiles'][$sucursal] ?? ucfirs
         <?php endif; ?>
 
         <form method="POST">
+            <input type="hidden" name="accion" value="enviar">
             <div class="field">
                 <label>💵 Efectivo en caja</label>
                 <div class="prefix">

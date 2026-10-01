@@ -289,6 +289,9 @@ try {
             </div>
         </div>
 
+        <div id="aviso_monto" style="display:none;background:#fff3e0;border:2px solid #ff9800;color:#e65100;
+             border-radius:8px;padding:12px;margin-bottom:12px;font-size:14px;font-weight:bold;text-align:center"></div>
+
         <button class="btn-confirmar" id="btn_confirmar" disabled onclick="confirmarPago()">
             Confirmar Pago
         </button>
@@ -379,17 +382,43 @@ try {
             
             document.getElementById('display_vuelto').textContent = '₡' + vuelto.toLocaleString('es-CR');
             document.getElementById('display_pendiente').textContent = '₡' + pendiente.toLocaleString('es-CR');
-            
+
+            // Aviso visual si el vuelto es imposible (nadie paga con más de ₡50.000)
+            const avisoBox = document.getElementById('aviso_monto');
+            if(vuelto > VUELTO_SOSPECHOSO) {
+                avisoBox.style.display = 'block';
+                avisoBox.textContent = '⚠️ El vuelto sería ₡' + vuelto.toLocaleString('es-CR') +
+                                       '. Revisá si se te fue un cero de más.';
+            } else {
+                avisoBox.style.display = 'none';
+            }
+
             // Habilitar/deshabilitar botón confirmar
             document.getElementById('btn_confirmar').disabled = (pendiente > 0);
         }
+
+        // Ningún billete pasa de ₡50.000, así que un vuelto mayor es casi seguro un error de tecleo
+        const VUELTO_SOSPECHOSO = 50000;
 
         function confirmarPago() {
             if(calcularPendiente() > 0) {
                 mostrarNotificacion('Aún hay monto pendiente por pagar', 'error');
                 return;
             }
-            
+
+            const vuelto = calcularVuelto();
+            if(vuelto > VUELTO_SOSPECHOSO) {
+                const recibido = pagos.efectivo + pagos.sinpe + pagos.tarjeta;
+                const ok = confirm(
+                    'Revisá los montos antes de cobrar:\n\n' +
+                    'La orden es de ₡' + TOTAL_ORDEN.toLocaleString('es-CR') + '\n' +
+                    'Estás registrando ₡' + recibido.toLocaleString('es-CR') + '\n' +
+                    'Vuelto: ₡' + vuelto.toLocaleString('es-CR') + '\n\n' +
+                    '¿Está bien así?'
+                );
+                if(!ok) return;
+            }
+
             // Enviar al servidor
             fetch('procesar_pago.php', {
                 method: 'POST',

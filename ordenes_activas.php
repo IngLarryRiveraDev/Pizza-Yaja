@@ -478,7 +478,14 @@ function enviarACocina(id) {
 }
 
 // Recargar cada 30s
-setInterval(() => location.reload(), 30000);
+// No recargar mientras hay algo abierto: le borraba lo que estaba escribiendo
+function hayModalAbierto() {
+    return ['modal_orden','modal_gasto','modal_eliminar','modal_calzone_rapido'].some(id => {
+        const el = document.getElementById(id);
+        return el && getComputedStyle(el).display !== 'none';
+    });
+}
+setInterval(() => { if(!hayModalAbierto()) location.reload(); }, 30000);
 
 // ── TIMBRE: cocina marcó una orden como lista ──
 let audioCtx = null;

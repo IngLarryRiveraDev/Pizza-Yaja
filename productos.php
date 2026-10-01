@@ -176,7 +176,11 @@ try {
             <?php foreach([7, 8] as $catBebida):
                 $sabores = $bebidas_por_cat[$catBebida] ?? [];
                 if(empty($sabores)) continue;
-                $desde = min(array_column($sabores, 'precio'));
+                // El precio que se muestra es el más repetido, no el más barato:
+                // sabores sueltos como la Mangonada hacían ver el batido más barato de lo que es
+                $conteo = array_count_values(array_map('intval', array_column($sabores, 'precio')));
+                arsort($conteo);
+                $precioBase = array_key_first($conteo);
             ?>
                 <div class="producto-card" style="background:#fff; border:3px solid #2196f3; border-radius:10px; padding:15px; cursor:pointer;"
                      onclick="abrirModalBebida(<?php echo $catBebida; ?>)">
@@ -184,7 +188,7 @@ try {
                         🥤 <?php echo $bebida_nombres[$catBebida]; ?>
                     </div>
                     <div style="color:#2196f3; font-size:20px; font-weight:bold;">
-                        desde ₡<?php echo number_format($desde, 0); ?>
+                        ₡<?php echo number_format($precioBase, 0); ?>
                     </div>
                     <div style="color:#888; font-size:13px; margin-top:4px;">
                         <?php echo count($sabores); ?> sabores

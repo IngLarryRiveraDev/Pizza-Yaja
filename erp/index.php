@@ -46,13 +46,13 @@ $mPago = $conn->prepare("
 $mPago->execute([$hoy]);
 $metodos = $mPago->fetchAll();
 
-// ── Top 5 productos hoy
+// ── Todo lo vendido hoy
 $top5 = $conn->prepare("
   SELECT d.producto_nombre AS nombre, SUM(d.cantidad) AS qty,
          SUM(d.precio_unitario * d.cantidad) AS total
   FROM detalle_orden d JOIN ordenes o ON d.orden_id = o.id
   WHERE DATE(o.fecha_creacion)=? AND {$DONE} {$SUC}
-  GROUP BY d.producto_nombre ORDER BY qty DESC LIMIT 5
+  GROUP BY d.producto_nombre ORDER BY qty DESC
 ");
 $top5->execute([$hoy]);
 $topProd = $top5->fetchAll();
@@ -152,8 +152,11 @@ $mpData   = json_encode(array_column($metodos, 'c'));
     <!-- Tables row -->
     <div class="eg2">
       <div class="ec nm">
-        <div class="ec-head">🍕 Top 5 productos hoy</div>
-        <div class="ec-body np">
+        <div class="ec-head" style="justify-content:space-between">
+          <span>🍕 Vendido hoy</span>
+          <span style="font-size:12px;color:#888;font-weight:400"><?= count($topProd) ?> productos</span>
+        </div>
+        <div class="ec-body np" style="max-height:340px;overflow-y:auto">
           <table class="et">
             <thead><tr><th>Producto</th><th>Cant.</th><th>Total</th></tr></thead>
             <tbody>

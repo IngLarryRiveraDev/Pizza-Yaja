@@ -9,8 +9,6 @@ if(!isset($_SESSION['usuario_id'])) {
 require_once 'config.php';
 require_once 'solicitudes_fn.php';
 
-const ESPERA_RECHAZO_MIN = 3; // minutos antes de poder pedirlo de nuevo
-
 $usuario_id = $_SESSION['usuario_id'];
 $sucursal   = $_SESSION['sucursal'] ?? 'cariari';
 $fecha_hoy  = date('Y-m-d');
@@ -55,7 +53,9 @@ try {
     if($ultimo) $periodo_desde = $ultimo;
 } catch(PDOException $e) {}
 
-// Órdenes que siguen abiertas: no bloquean, pasan al siguiente turno
+// No se puede cerrar con órdenes abiertas ni con anulaciones sin responder
+setupSolicitudes($conn);
+
 $ordenes_abiertas = [];
 try {
     $chkOrd = $conn->prepare("
@@ -67,6 +67,19 @@ try {
     $ordenes_abiertas = $chkOrd->fetchAll(PDO::FETCH_ASSOC);
 } catch(PDOException $e) {}
 
+$anulaciones_pendientes = [];
+try {
+    $chkAnu = $conn->prepare("
+        SELECT numero_orden, motivo FROM solicitudes
+        WHERE tipo = 'eliminacion' AND estado = 'pendiente' AND sucursal = ?
+        ORDER BY numero_orden
+    ");
+    $chkAnu->execute([$sucursal]);
+    $anulaciones_pendientes = $chkAnu->fetchAll(PDO::FETCH_ASSOC);
+} catch(PDOException $e) {}
+
+$puede_cerrar = empty($ordenes_abiertas) && empty($anulaciones_pendientes);
+
 // Verificar si ya envió arqueo hoy
 try {
     $chk = $conn->prepare("SELECT id FROM arqueos WHERE usuario_id = ? AND fecha_cierre = ?");
@@ -76,52 +89,8 @@ try {
     }
 } catch(PDOException $e) {}
 
-// ── Permiso de la administración para hacer el cierre ────────────────────────
-setupSolicitudes($conn);
-
-function ultimaSolicitudCierre($conn, $usuario_id) {
-    // Solo del día: una autorización de ayer no sirve para cerrar hoy
-    $q = $conn->prepare("
-        SELECT * FROM solicitudes
-        WHERE tipo = 'cierre' AND usuario_id = ? AND estado <> 'usada'
-          AND DATE(created_at) = CURDATE()
-        ORDER BY created_at DESC LIMIT 1
-    ");
-    $q->execute([$usuario_id]);
-    return $q->fetch(PDO::FETCH_ASSOC) ?: null;
-}
-
-// Pedir permiso
-if(($_POST['accion'] ?? '') === 'solicitar' && !$error) {
-    $previa = ultimaSolicitudCierre($conn, $usuario_id);
-    $puede  = true;
-    if($previa && $previa['estado'] === 'pendiente') $puede = false;
-    if($previa && $previa['estado'] === 'rechazada' && $previa['respondido_at']) {
-        $espera = strtotime($previa['respondido_at']) + ESPERA_RECHAZO_MIN * 60;
-        if(time() < $espera) $puede = false;
-    }
-    if($puede) {
-        $conn->prepare("
-            INSERT INTO solicitudes (tipo, usuario_id, sucursal, motivo)
-            VALUES ('cierre', ?, ?, 'Solicita hacer el cierre de caja')
-        ")->execute([$usuario_id, $sucursal]);
-    }
-    header('Location: arqueo_caja.php'); exit;
-}
-
-$solicitud  = ultimaSolicitudCierre($conn, $usuario_id);
-$aprobado   = $solicitud && $solicitud['estado'] === 'aprobada';
-$esperando  = $solicitud && $solicitud['estado'] === 'pendiente';
-$rechazado  = $solicitud && $solicitud['estado'] === 'rechazada';
-
-// Segundos que faltan para poder volver a pedirlo
-$espera_seg = 0;
-if($rechazado && $solicitud['respondido_at']) {
-    $espera_seg = max(0, strtotime($solicitud['respondido_at']) + ESPERA_RECHAZO_MIN * 60 - time());
-}
-
 // Procesar envío
-if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'enviar' && !$error && $aprobado) {
+if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'enviar' && !$error && $puede_cerrar) {
     $fisico_efectivo = (float)str_replace(',', '.', $_POST['efectivo'] ?? 0);
     $fisico_sinpe    = (float)str_replace(',', '.', $_POST['sinpe']    ?? 0);
     $fisico_tarjeta  = (float)str_replace(',', '.', $_POST['tarjeta']  ?? 0);
@@ -185,9 +154,6 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'enviar
         ]);
 
         // El permiso se consume: no sirve para un segundo cierre
-        $conn->prepare("UPDATE solicitudes SET estado = 'usada' WHERE id = ?")
-             ->execute([$solicitud['id']]);
-
         $enviado = true;
     } catch(PDOException $e) {
         if($e->getCode() == 23000) {
@@ -299,74 +265,16 @@ $suc_nombre = ['cariari'=>'Cariari','guapiles'=>'Guapiles'][$sucursal] ?? ucfirs
         </div>
         <a href="ordenes_activas.php" class="btn-volver">← Volver</a>
 
-    <?php elseif($esperando): ?>
-        <div class="estado-ok">
-            <div class="icon">⏳</div>
-            <h2 style="color:#ff9800">Esperando respuesta</h2>
-            <p>La administración tiene que autorizar tu cierre.<br>Esta pantalla se actualiza sola.</p>
-            <div style="color:#aaa;font-size:12px;margin-bottom:16px;">
-                Enviada a las <?= date('H:i', strtotime($solicitud['created_at'])) ?>
-            </div>
-            <a href="ordenes_activas.php" class="btn-volver" style="margin-top:0">← Seguir trabajando</a>
-        </div>
-        <script>setTimeout(() => location.reload(), 5000);</script>
-
-    <?php elseif(!$aprobado): ?>
-        <?php if($rechazado): ?>
+    <?php elseif(!$puede_cerrar): ?>
         <div class="alerta" style="border-color:#e53935">
             <div class="icon">🚫</div>
-            <p><strong>La administración rechazó tu solicitud.</strong>
-            <?php if($solicitud['respuesta']): ?>
-                <br><span style="color:#c62828"><?= htmlspecialchars($solicitud['respuesta']) ?></span>
-            <?php endif; ?>
-            </p>
+            <p><strong>Antes de cerrar hay que dejar todo resuelto.</strong></p>
         </div>
-        <?php endif; ?>
-
-        <p style="color:#888;font-size:13px;text-align:center;margin-bottom:16px;">
-            Para cerrar caja primero pedí autorización a la administración.
-        </p>
-
-        <?php if($espera_seg > 0): ?>
-            <div style="background:#f5f5f5;border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;">
-                <div style="color:#888;font-size:13px;">Podés volver a pedirlo en</div>
-                <div id="cuenta" style="font-size:28px;font-weight:bold;color:#555;font-family:monospace;">--:--</div>
-            </div>
-            <script>
-            let restan = <?= (int)$espera_seg ?>;
-            const pinta = () => {
-                const m = String(Math.floor(restan / 60)).padStart(2,'0');
-                const s = String(restan % 60).padStart(2,'0');
-                document.getElementById('cuenta').textContent = m + ':' + s;
-                if(restan-- <= 0) location.reload();
-            };
-            pinta();
-            setInterval(pinta, 1000);
-            </script>
-        <?php else: ?>
-            <form method="POST">
-                <input type="hidden" name="accion" value="solicitar">
-                <button type="submit" class="btn-enviar">Pedir autorización →</button>
-            </form>
-        <?php endif; ?>
-
-        <a href="ordenes_activas.php" class="btn-volver">← Volver</a>
-
-    <?php else: ?>
-        <div style="background:#e8f5e9;border:2px solid #4caf50;border-radius:10px;padding:10px;text-align:center;margin-bottom:14px;">
-            <span style="color:#2e7d32;font-size:13px;font-weight:bold;">✓ Autorizado por la administración</span>
-        </div>
-        <p style="color:#888;font-size:13px;text-align:center;margin-bottom:8px;">
-            Ingresá los montos físicos contados al cierre.
-        </p>
-        <p style="color:#aaa;font-size:12px;text-align:center;margin-bottom:16px;">
-            Tu turno cuenta desde <?= date('d/m H:i', strtotime($periodo_desde)) ?>
-        </p>
 
         <?php if(!empty($ordenes_abiertas)): ?>
-        <div style="background:#e3f2fd;border:2px solid #90caf9;border-radius:10px;padding:12px;margin-bottom:16px;">
-            <div style="font-size:13px;font-weight:bold;color:#1565c0;margin-bottom:8px;">
-                🔄 <?= count($ordenes_abiertas) ?> orden<?= count($ordenes_abiertas) > 1 ? 'es' : '' ?> queda<?= count($ordenes_abiertas) > 1 ? 'n' : '' ?> abierta<?= count($ordenes_abiertas) > 1 ? 's' : '' ?>
+        <div style="background:#fff8f0;border:2px solid #ffcc80;border-radius:10px;padding:12px;margin-bottom:12px;">
+            <div style="font-size:13px;font-weight:bold;color:#e65100;margin-bottom:8px;">
+                📋 <?= count($ordenes_abiertas) ?> orden<?= count($ordenes_abiertas) > 1 ? 'es' : '' ?> sin completar
             </div>
             <div style="font-size:12px;color:#555;line-height:1.7;">
                 <?php foreach($ordenes_abiertas as $oa): ?>
@@ -377,11 +285,36 @@ $suc_nombre = ['cariari'=>'Cariari','guapiles'=>'Guapiles'][$sucursal] ?? ucfirs
                     </div>
                 <?php endforeach; ?>
             </div>
-            <div style="font-size:12px;color:#1565c0;margin-top:8px;">
-                No las borres: pasan al siguiente turno y lo que se cobre ahí cuenta para el otro camarero.
+        </div>
+        <?php endif; ?>
+
+        <?php if(!empty($anulaciones_pendientes)): ?>
+        <div style="background:#ffebee;border:2px solid #ef9a9a;border-radius:10px;padding:12px;margin-bottom:12px;">
+            <div style="font-size:13px;font-weight:bold;color:#c62828;margin-bottom:8px;">
+                🔒 <?= count($anulaciones_pendientes) ?> anulación<?= count($anulaciones_pendientes) > 1 ? 'es' : '' ?> esperando respuesta
+            </div>
+            <div style="font-size:12px;color:#555;line-height:1.7;">
+                <?php foreach($anulaciones_pendientes as $an): ?>
+                    <div><strong>#<?= (int)$an['numero_orden'] ?></strong> — <?= htmlspecialchars($an['motivo']) ?></div>
+                <?php endforeach; ?>
+            </div>
+            <div style="font-size:12px;color:#c62828;margin-top:8px;">
+                Avisale a la administración para que las responda.
             </div>
         </div>
         <?php endif; ?>
+
+        <a href="ordenes_activas.php" class="btn-enviar" style="background:#e53935;display:block;text-align:center;text-decoration:none;">
+            Ver órdenes activas
+        </a>
+
+    <?php else: ?>
+        <p style="color:#888;font-size:13px;text-align:center;margin-bottom:8px;">
+            Ingresá los montos físicos contados al cierre.
+        </p>
+        <p style="color:#aaa;font-size:12px;text-align:center;margin-bottom:16px;">
+            Tu turno cuenta desde <?= date('d/m H:i', strtotime($periodo_desde)) ?>
+        </p>
 
         <form method="POST">
             <input type="hidden" name="accion" value="enviar">

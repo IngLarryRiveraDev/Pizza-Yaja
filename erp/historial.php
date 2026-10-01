@@ -100,6 +100,19 @@ $pagQ->execute($paramsBase);
 $porMetodo = ['efectivo'=>0,'sinpe'=>0,'tarjeta'=>0];
 foreach($pagQ->fetchAll() as $r) $porMetodo[$r['metodo_pago']] = (float)$r['total'];
 
+// Todo lo vendido ese día, sin recortar a un top
+$vendQ = $conn->prepare("
+  SELECT d.producto_nombre AS nombre, SUM(d.cantidad) AS qty,
+         SUM(d.precio_unitario * d.cantidad) AS total
+  FROM detalle_orden d JOIN ordenes o ON d.orden_id = o.id
+  WHERE {$whereBase}
+  GROUP BY d.producto_nombre
+  ORDER BY qty DESC, d.producto_nombre
+");
+$vendQ->execute($paramsBase);
+$vendidos = $vendQ->fetchAll();
+$vendUnidades = array_sum(array_column($vendidos, 'qty'));
+
 // Calzones del día: los vendidos sueltos ('Calzone ...') y los que vienen
 // dentro de un combo, que en la descripción quedan como 'Calzone: sabor'
 $calzQ = $conn->prepare("
@@ -244,6 +257,33 @@ function urlHist($cambios) {
     </div>
 
     <?php else: ?>
+
+    <!-- Lo que se vendió ese día, producto por producto -->
+    <div class="ec">
+      <div class="ec-head" style="justify-content:space-between">
+        <span>🍕 Productos vendidos</span>
+        <span style="font-size:12px;color:#888;font-weight:400">
+          <?= count($vendidos) ?> producto<?= count($vendidos) === 1 ? '' : 's' ?> · <?= (int)$vendUnidades ?> unidad<?= (int)$vendUnidades === 1 ? '' : 'es' ?>
+        </span>
+      </div>
+      <div class="ec-body np" style="max-height:360px;overflow-y:auto">
+        <table class="et">
+          <thead><tr><th>Producto</th><th style="text-align:right">Cant.</th><th style="text-align:right">Total</th></tr></thead>
+          <tbody>
+          <?php if(empty($vendidos)): ?>
+            <tr><td colspan="3" style="text-align:center;color:#aaa;padding:25px">No se vendió nada este día</td></tr>
+          <?php else: foreach($vendidos as $v): ?>
+            <tr>
+              <td><?= htmlspecialchars($v['nombre']) ?></td>
+              <td style="text-align:right;font-weight:700"><?= (int)$v['qty'] ?></td>
+              <td style="text-align:right">₡<?= number_format($v['total'], 0) ?></td>
+            </tr>
+          <?php endforeach; endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="ec">
       <div class="ec-head" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
         <span>Órdenes del día</span>

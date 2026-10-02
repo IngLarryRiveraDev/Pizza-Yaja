@@ -87,10 +87,15 @@ try {
         ]);
     }
     
+    // Si lo marcaron para llevar, la orden entera queda así (cocina lo necesita ver)
+    if(!empty($datos['para_llevar'])) {
+        $conn->prepare("UPDATE ordenes SET tipo_servicio = 'express' WHERE id = ?")->execute([$orden_id]);
+    }
+
     // Actualizar total de la orden
     $stmt = $conn->prepare("
-        UPDATE ordenes 
-        SET total = (SELECT SUM(precio_unitario * cantidad) FROM detalle_orden WHERE orden_id = ?) 
+        UPDATE ordenes
+        SET total = (SELECT SUM(precio_unitario * cantidad) FROM detalle_orden WHERE orden_id = ?)
         WHERE id = ?
     ");
     $stmt->execute([$orden_id, $orden_id]);

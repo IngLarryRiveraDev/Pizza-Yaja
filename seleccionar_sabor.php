@@ -271,6 +271,19 @@ $es_2x1 = ($categoria_id == 1);
                 </div>
             </div>
         </div>
+
+        <!-- Varias pizzas del mismo tamaño de una sola vez -->
+        <div class="seccion">
+            <div class="seccion-titulo">¿Cuántas pizzas de este tamaño?</div>
+            <div style="display:flex;align-items:center;gap:10px;max-width:260px">
+                <button type="button" onclick="cambiarCantidadPizzas(-1)"
+                    style="width:52px;height:52px;font-size:26px;border:2px solid #ddd;border-radius:8px;background:#f5f5f5;cursor:pointer">−</button>
+                <div id="cantidad_pizzas" style="flex:1;text-align:center;font-size:26px;font-weight:bold">1</div>
+                <button type="button" onclick="cambiarCantidadPizzas(1)"
+                    style="width:52px;height:52px;font-size:26px;border:2px solid #ddd;border-radius:8px;background:#f5f5f5;cursor:pointer">+</button>
+            </div>
+            <div id="sabores_extra" style="margin-top:14px"></div>
+        </div>
     <?php endif; ?>
 
     <!-- Opciones comunes -->
@@ -301,7 +314,46 @@ $es_2x1 = ($categoria_id == 1);
         let precioBase = <?php echo $precio_base; ?>;
         let precioTotal = precioBase;
         let es2x1 = <?php echo $es_2x1 ? 'true' : 'false'; ?>;
-        
+
+        // Para pedir varias pizzas iguales de una sola vez
+        const SABORES = <?php echo json_encode(array_map(fn($s) => [
+            'nombre'  => $s['nombre'],
+            'premium' => (int)$s['es_premium'] ? (float)$s['precio_premium'] : 0,
+        ], $sabores)); ?>;
+        let cantidadPizzas = 1;
+        let saboresExtra = [];   // sabores de la pizza 2 en adelante
+
+        function cambiarCantidadPizzas(delta) {
+            cantidadPizzas = Math.max(1, Math.min(20, cantidadPizzas + delta));
+            document.getElementById('cantidad_pizzas').textContent = cantidadPizzas;
+
+            saboresExtra = saboresExtra.slice(0, cantidadPizzas - 1);
+            while(saboresExtra.length < cantidadPizzas - 1) saboresExtra.push(SABORES[0].nombre);
+
+            const cont = document.getElementById('sabores_extra');
+            cont.innerHTML = saboresExtra.map((sel, i) => {
+                const opts = SABORES.map(s =>
+                    '<option value="' + s.nombre + '"' + (s.nombre === sel ? ' selected' : '') + '>' +
+                    s.nombre + (s.premium ? '  (+₡' + s.premium.toLocaleString('es-CR') + ')' : '') +
+                    '</option>').join('');
+                return '<div style="margin-bottom:8px">' +
+                       '<label style="display:block;font-size:13px;font-weight:bold;color:#555;margin-bottom:4px">Sabor de la pizza ' + (i + 2) + '</label>' +
+                       '<select onchange="saboresExtra[' + i + '] = this.value; calcularTotal();" ' +
+                       'style="width:100%;padding:12px;border:2px solid #ddd;border-radius:6px;font-size:15px">' + opts + '</select></div>';
+            }).join('');
+
+            calcularTotal();
+        }
+
+        function precioDeSabor(nombre) {
+            const s = SABORES.find(x => x.nombre === nombre);
+            return precioBase + (s ? s.premium : 0);
+        }
+
+        function totalExtras() {
+            return saboresExtra.reduce((acc, n) => acc + precioDeSabor(n), 0);
+        }
+
         // Variables para guardar selecciÃ³n
         let seleccion = {
             pizza1: null,
@@ -405,7 +457,10 @@ $es_2x1 = ($categoria_id == 1);
                 }
             }
             
-            document.getElementById('precio_total').textContent = 'Total: ₡' + precioTotal.toLocaleString('es-CR');
+            const total = precioTotal + (es2x1 ? 0 : totalExtras());
+            document.getElementById('precio_total').textContent =
+                'Total: ₡' + total.toLocaleString('es-CR') +
+                (cantidadPizzas > 1 ? '  (' + cantidadPizzas + ' pizzas)' : '');
         }
 
         function agregarAlCarrito() {
@@ -433,32 +488,48 @@ $es_2x1 = ($categoria_id == 1);
         }
     }
     
-    // Preparar datos para enviar
-    let datos = {
+    const comentarios = document.getElementById('comentarios').value;
+    const paraLlevar  = document.getElementById('para_llevar').checked;
+    const base = {
         tipo: es2x1 ? 'pizza_2x1' : 'pizza_individual',
         categoria_id: <?php echo $categoria_id; ?>,
         tamano: '<?php echo $tamano_nombre; ?>',
-        precio: precioTotal,
-        detalles: seleccion,
-        comentarios: document.getElementById('comentarios').value,
-        para_llevar: document.getElementById('para_llevar').checked
+        comentarios: comentarios,
+        para_llevar: paraLlevar
     };
-    
-    // Enviar al servidor
-    fetch('agregar_carrito.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(datos)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if(data.success) {
-            //alert('Â¡Producto agregado al carrito!');
-            window.location.href = 'menu.php';
-        }
-    })
+
+    // La primera va con lo que se eligió en pantalla; las demás, una línea cada una
+    const envios = [ Object.assign({}, base, { precio: precioTotal, detalles: seleccion }) ];
+
+    if(!es2x1) {
+        saboresExtra.forEach(nombre => {
+            const s = SABORES.find(x => x.nombre === nombre);
+            envios.push(Object.assign({}, base, {
+                precio: precioDeSabor(nombre),
+                detalles: {
+                    es_mitad_mitad: false,
+                    pizza1: { nombre: nombre, esPremium: s && s.premium ? 1 : 0, precioPremium: s ? s.premium : 0 }
+                }
+            }));
+        });
+    }
+
+    // De a una, para que el total de la orden se recalcule bien
+    envios.reduce(
+        (cadena, datos) => cadena.then(() =>
+            fetch('agregar_carrito.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(datos)
+            }).then(r => r.json()).then(d => {
+                if(!d.success) throw new Error(d.error || 'Error al agregar');
+            })
+        ),
+        Promise.resolve()
+    )
+    .then(() => { window.location.href = 'menu.php'; })
     .catch(error => {
-        mostrarNotificacion('Error al agregar al carrito', 'error');
+        mostrarNotificacion('Error al agregar al carrito: ' + error.message, 'error');
         console.error(error);
     });
 }

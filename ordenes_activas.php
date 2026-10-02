@@ -353,10 +353,17 @@ function abrirOrden(id) {
 
     // Info
     let clienteNombre = o.nombre_cliente || 'Sin asignar';
-    let servicio = o.tipo_servicio === 'express' ? '📦 Para llevar' : '🍽️ Comer aquí';
+    const esLlevar = ['llevar','express'].includes(o.tipo_servicio);
+    let servicio = esLlevar ? '📦 Para llevar' : '🍽️ Comer aquí';
     let body = `
         <div class="modal-info">Cliente: <span>${clienteNombre}</span></div>
-        <div class="modal-info">Servicio: <span>${servicio}</span></div>
+        <div class="modal-info">
+            Servicio: <span>${servicio}</span>
+            <button onclick="cambiarServicio(${o.id}, '${esLlevar ? 'local' : 'express'}')"
+                style="margin-left:8px;padding:3px 10px;background:#2196f3;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:bold;cursor:pointer">
+                Cambiar a ${esLlevar ? '🍽️ comer aquí' : '📦 para llevar'}
+            </button>
+        </div>
         <div class="modal-detalles">`;
 
     o.detalles.forEach(d => {
@@ -461,6 +468,23 @@ function confirmarEliminar() {
             location.reload();
         }
         else alert('Error: ' + d.error);
+    });
+}
+
+function cambiarServicio(id, tipo) {
+    fetch('cambiar_servicio.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({orden_id: id, tipo})
+    })
+    .then(r => r.json())
+    .then(d => {
+        if(d.success) {
+            mostrarNotificacion(tipo === 'express' ? '📦 Marcada para llevar' : '🍽️ Marcada para comer aquí');
+            location.reload();
+        } else {
+            mostrarNotificacion('Error: ' + d.error, 'error');
+        }
     });
 }
 

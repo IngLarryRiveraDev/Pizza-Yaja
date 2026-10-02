@@ -386,7 +386,7 @@ if(!isset($_SESSION['usuario_id']) || $_SESSION['rol'] != 'cocina') {
                                 <div class="orden-numero">Orden #${orden.numero_orden}</div>
                                 <div class="orden-cliente">
                                     ${escHtml(orden.nombre_cliente)} &nbsp;·&nbsp;
-                                    ${orden.tipo_servicio === 'express' ? '📦 Para llevar' : '🍽️ Comer aquí'}
+                                    ${['llevar','express'].includes(orden.tipo_servicio) ? '📦 Para llevar' : '🍽️ Comer aquí'}
                                 </div>
                             </div>
                             <div>

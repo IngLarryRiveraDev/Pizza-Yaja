@@ -190,9 +190,21 @@ $titulo = match($categoria_id) {
         <div class="modal-titulo" id="mc_titulo"></div>
         <div class="modal-desc" id="mc_desc"></div>
 
+        <?php
+        // Las mitades van en lista desplegable: con 17 sabores, dos grillas más no entran en pantalla
+        $opcionesSabores = '';
+        foreach($sabores as $s) {
+            $opcionesSabores .= '<option>' . htmlspecialchars($s['nombre']) . '</option>';
+        }
+        ?>
+
         <!-- Sección pizza 1 -->
         <div id="sec_pizza1" style="display:none">
             <span class="seccion-label" id="lbl_pizza1">Sabor de la pizza:</span>
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:14px;cursor:pointer">
+                <input type="checkbox" id="mitad_pizza1" onchange="toggleMitad('pizza1')" style="width:16px;height:16px">
+                Mitad y mitad (dos sabores)
+            </label>
             <div class="sabores-grid" id="grid_pizza1">
                 <?php foreach($sabores as $s): ?>
                     <div class="sabor-btn" onclick="selSabor('pizza1','<?php echo addslashes($s['nombre']); ?>',this)">
@@ -200,18 +212,34 @@ $titulo = match($categoria_id) {
                     </div>
                 <?php endforeach; ?>
             </div>
+            <div id="mitades_pizza1" style="display:none">
+                <label class="seccion-label" style="font-size:13px">Mitad 1</label>
+                <select class="cf-select" id="m1_pizza1" onchange="setMitades('pizza1')" style="width:100%;padding:11px;margin-bottom:8px;border:2px solid #ddd;border-radius:6px;font-size:15px"><?= $opcionesSabores ?></select>
+                <label class="seccion-label" style="font-size:13px">Mitad 2</label>
+                <select class="cf-select" id="m2_pizza1" onchange="setMitades('pizza1')" style="width:100%;padding:11px;border:2px solid #ddd;border-radius:6px;font-size:15px"><?= $opcionesSabores ?></select>
+            </div>
             <hr class="divider">
         </div>
 
         <!-- Sección pizza 2 -->
         <div id="sec_pizza2" style="display:none">
             <span class="seccion-label">Sabor de la segunda pizza:</span>
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:14px;cursor:pointer">
+                <input type="checkbox" id="mitad_pizza2" onchange="toggleMitad('pizza2')" style="width:16px;height:16px">
+                Mitad y mitad (dos sabores)
+            </label>
             <div class="sabores-grid" id="grid_pizza2">
                 <?php foreach($sabores as $s): ?>
                     <div class="sabor-btn" onclick="selSabor('pizza2','<?php echo addslashes($s['nombre']); ?>',this)">
                         <?php echo htmlspecialchars($s['nombre']); ?>
                     </div>
                 <?php endforeach; ?>
+            </div>
+            <div id="mitades_pizza2" style="display:none">
+                <label class="seccion-label" style="font-size:13px">Mitad 1</label>
+                <select class="cf-select" id="m1_pizza2" onchange="setMitades('pizza2')" style="width:100%;padding:11px;margin-bottom:8px;border:2px solid #ddd;border-radius:6px;font-size:15px"><?= $opcionesSabores ?></select>
+                <label class="seccion-label" style="font-size:13px">Mitad 2</label>
+                <select class="cf-select" id="m2_pizza2" onchange="setMitades('pizza2')" style="width:100%;padding:11px;border:2px solid #ddd;border-radius:6px;font-size:15px"><?= $opcionesSabores ?></select>
             </div>
             <hr class="divider">
         </div>
@@ -274,6 +302,13 @@ function abrirCombo(id) {
     const selCalzone = document.getElementById('sel_calzone');
     selCalzone.value = '';
     state.calzone = null;
+
+    // Volver las pizzas a sabor entero
+    ['pizza1','pizza2'].forEach(k => {
+        document.getElementById('mitad_' + k).checked = false;
+        document.getElementById('grid_' + k).style.display = '';
+        document.getElementById('mitades_' + k).style.display = 'none';
+    });
 
     // Mostrar/ocultar secciones
     document.getElementById('sec_pizza1').style.display  = +comboActual.pide_pizza         ? 'block' : 'none';
@@ -345,6 +380,25 @@ function selSabor(key, nombre, el) {
     el.closest('.sabores-grid').querySelectorAll('.sabor-btn').forEach(b => b.classList.remove('selected'));
     el.classList.add('selected');
     state[key] = nombre;
+}
+
+function toggleMitad(key) {
+    const parte = document.getElementById('mitad_' + key).checked;
+    document.getElementById('grid_' + key).style.display    = parte ? 'none' : '';
+    document.getElementById('mitades_' + key).style.display = parte ? 'block' : 'none';
+
+    if(parte) {
+        setMitades(key);
+    } else {
+        state[key] = null;
+        document.querySelectorAll('#grid_' + key + ' .sabor-btn').forEach(b => b.classList.remove('selected'));
+    }
+}
+
+function setMitades(key) {
+    const m1 = document.getElementById('m1_' + key).value;
+    const m2 = document.getElementById('m2_' + key).value;
+    state[key] = (m1 === m2) ? m1 : ('Mitad ' + m1 + ' / Mitad ' + m2);
 }
 
 function agregarCombo() {

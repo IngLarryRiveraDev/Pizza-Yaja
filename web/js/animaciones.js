@@ -9,11 +9,11 @@
    data-anim="zoom"        la <img> de adentro se aleja suavemente (el marco
                            necesita overflow:hidden)
    data-anim="contador"    cuenta desde 0 hasta el número que tiene escrito
-   data-anim="lineas"      título: cada .linea > span sube detrás de una máscara
+   data-anim="lineas"      título: cada línea sube detrás de una máscara (CSS)
    data-anim="cinta"       cinta infinita; acelera con la velocidad del scroll
-   data-anim="pizza-hero"  el momento wow del héroe (entra girando y gira con el scroll)
+   data-anim="pizza-hero"  momento wow: entra girando (CSS) y gira con el scroll (aquí)
    data-anim="rebote"      rebota cuando se agrega algo al carrito
-   data-anim-hero          elementos del héroe que entran al cargar la página
+   data-anim-hero="1"      elementos del héroe que aparecen al cargar (CSS)
    data-velocidad="-12"    parallax: se desplaza ese % de su alto (solo escritorio)
    data-progreso           barra de progreso de lectura
    data-nav-ocultar        nav que se esconde al bajar y aparece al subir
@@ -28,19 +28,10 @@
 (function () {
   'use strict';
 
-  var html = document.documentElement;
   var reducir = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  // Quita el anti-parpadeo del héroe (ver animaciones.css)
-  function liberar() {
-    clearTimeout(window.__animRespaldo);
-    html.classList.remove('js-anim');
-  }
-
   var apagado = { entrar: function () {} };
 
-  if (!window.gsap || !window.ScrollTrigger) { liberar(); window.Animaciones = apagado; return; }
-  if (reducir) { liberar(); window.Animaciones = apagado; return; }
+  if (!window.gsap || !window.ScrollTrigger || reducir) { window.Animaciones = apagado; return; }
 
   gsap.registerPlugin(ScrollTrigger);
   var $$ = function (sel, ctx) { return gsap.utils.toArray(sel, ctx); };
@@ -60,19 +51,9 @@
     }).observe(document.body, { attributes: true, attributeFilter: ['style'] });
   }
 
-  /* ---------- 2. Héroe: entrada al cargar ---------- */
-  liberar(); // se quita ANTES de crear los gsap.from para que el estado final sea "visible"
-
-  var intro = gsap.timeline({ defaults: { ease: 'expo.out' } });
-  $$('[data-anim="pizza-hero"]').forEach(function (pizza) {
-    var disco = pizza.querySelector('.pizza-disco') || pizza;
-    intro.from(pizza, { autoAlpha: 0, duration: .4, ease: 'none' }, 0)
-         .from(disco, { scale: .55, rotate: -140, duration: 1.8 }, 0)
-         .from(pizza.querySelectorAll('.pizza-halo'), { scale: .5, autoAlpha: 0, duration: 1.6 }, .1)
-         .from(pizza.querySelectorAll('.pizza-sello'), { scale: 0, rotate: -90, duration: 1.2, ease: 'back.out(1.6)' }, .9);
-  });
-  intro.from('[data-anim="lineas"] .linea > span', { yPercent: 115, duration: 1.2, stagger: .12 }, .15)
-       .from('[data-anim-hero]', { y: 24, autoAlpha: 0, duration: 1, stagger: .08 }, .4);
+  /* ---------- 2. Héroe ----------
+     La ENTRADA del héroe es CSS puro (ver animaciones.css) para que arranque
+     al instante aunque GSAP tarde en llegar. Aquí solo va lo atado al scroll. */
 
   /* ---------- 3. Entradas al hacer scroll ---------- */
   var entrada = { y: 40, autoAlpha: 0, duration: .9, ease: 'power3.out' };

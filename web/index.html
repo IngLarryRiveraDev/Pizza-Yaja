@@ -6,12 +6,14 @@
   <title>Pizza Yaja | Auténtico Sabor Artesanal</title>
   <meta name="description" content="Las mejores pizzas artesanales de la zona. Sucursales en Cariari y Guápiles. Abierto todos los días de 11am a 10pm.">
   <meta name="theme-color" content="#0d0d0d">
-  <!-- Anti-parpadeo del héroe: animaciones.js quita esta clase; si no carga, se quita sola a los 3 s -->
-  <script>document.documentElement.classList.add('js-anim');window.__animRespaldo=setTimeout(function(){document.documentElement.classList.remove('js-anim')},3000);</script>
   <link rel="preload" as="image" href="img/pizza-hero.webp" fetchpriority="high">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <!-- Las librerías de animación empiezan a bajar desde aquí (no al final de la página) -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js">
+  <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js">
+  <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/animaciones.css">
   <style>
@@ -37,8 +39,11 @@
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { font-size: 16px; -webkit-text-size-adjust: 100%; }
-    body { background: var(--bg); color: var(--text); font-family: var(--font-b); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+    /* overflow-x: clip en html Y body: nada puede ensanchar la página en el
+       celular (con "hidden" solo en body, algunos teléfonos igual dejan
+       mover la página de lado). */
+    html { font-size: 16px; -webkit-text-size-adjust: 100%; overflow-x: hidden; overflow-x: clip; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-b); overflow-x: hidden; overflow-x: clip; -webkit-font-smoothing: antialiased; }
     a { color: inherit; text-decoration: none; }
     img { max-width: 100%; display: block; }
     button { font-family: inherit; }
@@ -275,8 +280,10 @@
       font-family: var(--font-h); font-style: italic; font-weight: 900;
       font-size: clamp(24px, 3vw, 38px); white-space: nowrap; line-height: 1;
     }
-    .cinta-set span:nth-child(4n+3) { color: transparent; -webkit-text-stroke: 1.5px #140800; }
-    .cinta-set .ico { width: 22px; height: 22px; stroke-width: 2.4; }
+    /* Alternamos oscuro y crema. (Nada de -webkit-text-stroke: con fuentes
+       variables como Playfair dibuja las líneas internas de cada letra.) */
+    .cinta-set span:nth-of-type(even) { color: #fff4e6; }
+    .cinta-set .ico { width: 20px; height: 20px; stroke-width: 2.4; opacity: .85; }
 
     /* ============================================
        GENERAL SECTION STYLES
@@ -834,6 +841,9 @@
       }
       .bp-wa svg { width: 26px; height: 26px; fill: #fff; }
       .cart-fab, .wa-fab { display: none; }
+      /* La barra fija ya tiene "Pedir ahora": en el héroe no lo repetimos */
+      .hero-btns .btn-primary { display: none; }
+      .hero p { font-size: 15px; line-height: 1.6; }
       .cart-toast { right: 12px; left: 12px; text-align: center; bottom: calc(84px + env(safe-area-inset-bottom)); }
       footer { padding-bottom: calc(110px + env(safe-area-inset-bottom)) !important; }
     }
@@ -880,10 +890,24 @@
        RESPONSIVE
     ============================================ */
     @media (max-width: 900px) {
-      .hero { padding-top: 28px; padding-bottom: 64px; }
-      .hero-grid { grid-template-columns: 1fr; gap: 8px; }
-      .hero-visual { order: -1; justify-self: center; width: min(62vw, 300px); margin-bottom: 18px; }
+      /* Celular: la pizza grande y saliéndose por la derecha (más dinámico
+         que centrada y chica). El héroe tiene overflow:hidden y la recorta. */
+      .hero { padding-top: 8px; padding-bottom: 56px; min-height: 0; }
+      .hero-glow {
+        background:
+          radial-gradient(circle at 78% 22%, rgba(255,107,0,.28) 0%, transparent 46%),
+          radial-gradient(ellipse 80% 50% at 0% 100%, rgba(229,57,53,.08) 0%, transparent 60%);
+      }
+      .hero-grid { grid-template-columns: 1fr; gap: 0; }
+      .hero-visual {
+        order: -1; justify-self: end;
+        width: min(78vw, 400px); margin-right: calc(-5vw - 16%); margin-bottom: 4px;
+      }
+      .pizza-sello { top: 6%; left: 2%; }
       .hero-content { max-width: none; }
+      .hero-badge { margin-bottom: 18px; }
+      .hero h1 { margin-bottom: 18px; }
+      .hero p { margin-bottom: 28px; }
       .scroll-hint { display: none; }
       .nosotros-grid { grid-template-columns: 1fr; gap: 36px; }
       .nosotros-foto { aspect-ratio: 4/3; }
@@ -903,12 +927,17 @@
 
     @media (max-width: 540px) {
       section { padding: 80px 5vw; }
+      .promo-extra { display: none; }   /* banner en una sola línea */
       .hero-btns { flex-direction: column; align-items: stretch; }
       .hero-btns > * { justify-content: center; }
-      .features { grid-template-columns: 1fr 1fr; }
+      /* Tarjetas en una columna, ícono a la izquierda: se lee de un vistazo */
+      .features { grid-template-columns: 1fr; gap: 10px; }
+      .feature { display: grid; grid-template-columns: 42px 1fr; column-gap: 14px; align-items: center; padding: 16px; }
+      .feature-icon { grid-row: span 2; margin-bottom: 0; }
+      .feature h4 { margin-bottom: 2px; }
       .sizes-table { grid-template-columns: repeat(2, 1fr); }
       .sizes-table.cols4 { grid-template-columns: repeat(2, 1fr); }
-      .footer-grid { grid-template-columns: 1fr; gap: 28px; }
+      .footer-grid { grid-template-columns: 1fr 1fr; gap: 32px 20px; }
       .footer-bottom { flex-direction: column; gap: 8px; text-align: center; }
     }
 
@@ -965,7 +994,7 @@
   <div class="promo-banner" id="promoBanner">
     <span class="status-dot"></span>
     <span id="promoStatus">Abierto ahora</span>
-    <span>· Pedí en línea y saltate la fila</span>
+    <span class="promo-extra">· Pedí en línea y saltate la fila</span>
     <button type="button" onclick="abrirCarrito()">Pedir ahora</button>
   </div>
 
@@ -977,19 +1006,19 @@
 
     <div class="hero-grid">
       <div class="hero-content" data-hero-texto>
-        <div class="hero-badge" data-anim-hero>Abierto todos los días &middot; 11am – 10pm</div>
+        <div class="hero-badge" data-anim-hero="0">Abierto todos los días &middot; 11am – 10pm</div>
         <h1 data-anim="lineas">
           <span class="linea"><span>Auténtico sabor,</span></span>
           <span class="linea"><span class="accent">en cada porción</span></span>
         </h1>
-        <p data-anim-hero>Las mejores pizzas artesanales de la zona, hechas con ingredientes frescos y el amor que cada platillo merece. Encontranos en Cariari y Guápiles.</p>
+        <p data-anim-hero="2">Las mejores pizzas artesanales de la zona, hechas con ingredientes frescos y el amor que cada platillo merece. Encontranos en Cariari y Guápiles.</p>
         <div class="hero-btns">
           <button type="button" onclick="abrirCarrito()" class="btn-primary">
             <svg class="ico"><use href="#i-bolsa"/></svg>Pedir ahora<svg class="ico ico-flecha"><use href="#i-flecha"/></svg>
           </button>
           <a href="#menu" class="btn-outline">Ver el menú</a>
         </div>
-        <ul class="hero-datos" data-anim-hero>
+        <ul class="hero-datos" data-anim-hero="3">
           <li><svg class="ico"><use href="#i-pin"/></svg>Cariari y Guápiles</li>
           <li><svg class="ico"><use href="#i-pizza"/></svg>17 sabores</li>
           <li><svg class="ico"><use href="#i-bolsa"/></svg>Recoger o a domicilio</li>
@@ -1000,7 +1029,9 @@
         <div class="pizza-halo" aria-hidden="true"></div>
         <div class="pizza-giro">
           <img class="pizza-disco" src="img/pizza-hero.webp" width="840" height="840"
-               alt="Pizza artesanal de Pizza Yaja recién salida del horno" fetchpriority="high">
+               alt="Pizza artesanal de Pizza Yaja recién salida del horno" fetchpriority="high" decoding="async"
+               onload="this.closest('[data-anim=pizza-hero]').classList.add('lista')">
+          <noscript><style>[data-anim="pizza-hero"] .pizza-disco, [data-anim="pizza-hero"] .pizza-halo, [data-anim="pizza-hero"] .pizza-sello { opacity: 1 !important; }</style></noscript>
         </div>
         <div class="pizza-sello" aria-hidden="true">
           <svg class="sello-texto" viewBox="0 0 100 100">
@@ -1487,7 +1518,7 @@
   <footer>
     <div class="footer-grid" data-anim="cascada">
       <div class="footer-brand">
-        <img src="img/Logo.jpeg" alt="Pizza Yaja" style="height:70px;width:auto;mix-blend-mode:screen;filter:brightness(1.05);margin-bottom:12px">
+        <img src="img/Logo.jpeg" alt="Pizza Yaja" width="73" height="70" style="height:70px;width:auto;border-radius:14px;margin-bottom:16px" loading="lazy">
         <p>La mejor pizza artesanal de la zona, hecha con ingredientes frescos y el sabor que te va a encantar. Encontranos en Cariari y Guápiles.</p>
         <div class="footer-social">
           <a href="https://www.instagram.com/pizzayaja/" target="_blank" class="soc-btn" title="Instagram">

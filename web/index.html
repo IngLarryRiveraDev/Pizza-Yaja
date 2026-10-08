@@ -2,12 +2,18 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Pizza Yaja | Auténtico Sabor Artesanal</title>
   <meta name="description" content="Las mejores pizzas artesanales de la zona. Sucursales en Cariari y Guápiles. Abierto todos los días de 11am a 10pm.">
+  <meta name="theme-color" content="#0d0d0d">
+  <!-- Anti-parpadeo del héroe: animaciones.js quita esta clase; si no carga, se quita sola a los 3 s -->
+  <script>document.documentElement.classList.add('js-anim');window.__animRespaldo=setTimeout(function(){document.documentElement.classList.remove('js-anim')},3000);</script>
+  <link rel="preload" as="image" href="img/pizza-hero.webp" fetchpriority="high">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/animaciones.css">
   <style>
     /* ============================================
        DESIGN SYSTEM
@@ -20,27 +26,40 @@
       --orange:    #ff6b00;
       --orange-lt: #ff9800;
       --text:      #ede9e3;
-      --muted:     #7a7a7a;
+      --muted:     #a09a92;   /* gris cálido: contraste ≥ 6:1 sobre el fondo */
       --font-h:    'Playfair Display', Georgia, serif;
       --font-b:    'Inter', system-ui, sans-serif;
-      --r:         14px;
-      --t:         .3s ease;
+      --r:         16px;
+      --ease:      cubic-bezier(.22, 1, .36, 1);   /* "ease-out" largo: se siente caro */
+      --t:         .3s var(--ease);
+      /* Contenido máximo 1200px pero los fondos de sección ocupan todo el ancho */
+      --gutter:    max(5vw, calc(50% - 600px));
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; font-size: 16px; }
-    body { background: var(--bg); color: var(--text); font-family: var(--font-b); overflow-x: hidden; }
+    html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-b); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
     a { color: inherit; text-decoration: none; }
     img { max-width: 100%; display: block; }
+    button { font-family: inherit; }
+    :focus-visible { outline: 2px solid var(--orange-lt); outline-offset: 3px; border-radius: 6px; }
+    ::selection { background: var(--orange); color: #fff; }
+
+    /* Íconos SVG (ver el <svg> sprite al inicio del body) */
+    .ico { width: 1.15em; height: 1.15em; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -.2em; }
+
+    .progreso { background: linear-gradient(90deg, var(--orange), var(--orange-lt)); }
 
     /* ============================================
        NAVEGACIÓN
     ============================================ */
     nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-      height: 66px; padding: 0 5vw;
+      height: 66px; padding: 0 var(--gutter);
       display: flex; align-items: center; justify-content: space-between;
-      transition: background var(--t), box-shadow var(--t);
+      background: rgba(13,13,13,.6);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      transition: background var(--t), box-shadow var(--t), transform .35s var(--ease);
     }
     nav.scrolled {
       background: rgba(13,13,13,.93);
@@ -72,11 +91,13 @@
     .nav-cta {
       background: linear-gradient(135deg, var(--orange), var(--orange-lt)) !important;
       color: white !important; font-weight: 700 !important;
-      padding: 9px 22px; border-radius: 50px;
+      padding: 9px 20px; border-radius: 50px;
+      display: inline-flex; align-items: center; gap: 8px;
       box-shadow: 0 4px 16px rgba(255,107,0,.3);
+      transition: translate var(--t), box-shadow var(--t);
     }
     .nav-cta::after { display: none !important; }
-    .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(255,107,0,.45) !important; }
+    .nav-cta:hover { translate: 0 -1px; box-shadow: 0 6px 22px rgba(255,107,0,.45) !important; }
 
     .hamburger {
       display: none; flex-direction: column; gap: 5px;
@@ -101,120 +122,169 @@
     .mobile-menu.open { display: flex; }
     .mobile-menu a { font-size: 26px; font-weight: 600; color: var(--text); transition: color var(--t); }
     .mobile-menu a:hover { color: var(--orange); }
+    .mobile-menu a { font-family: var(--font-h); font-size: 34px; }
     .mobile-menu .mob-cta {
-      color: var(--orange) !important; font-size: 22px;
+      font-family: var(--font-b);
+      color: var(--orange) !important; font-size: 20px;
       border: 2px solid var(--orange); padding: 12px 32px; border-radius: 50px;
+      display: inline-flex; align-items: center; gap: 10px;
     }
 
     /* ============================================
-       HERO
+       HERO — el producto es el protagonista
     ============================================ */
     .hero {
-      min-height: 100svh; min-height: 100vh;
+      min-height: calc(100svh - 110px);
       display: flex; align-items: center;
       position: relative; overflow: hidden;
-      padding: 100px 5vw 60px;
-      background-image: url('img/pizzaBirria.jpeg');
-      background-size: cover;
-      background-position: center;
-    }
-    .hero::before {
-      content: ''; position: absolute; inset: 0;
-      background: rgba(0,0,0,.8);
-      z-index: 0;
+      padding: 48px var(--gutter) 72px;
+      isolation: isolate;
     }
 
+    /* Luz cálida detrás de la pizza, como si saliera del horno */
     .hero-glow {
-      position: absolute; inset: 0; pointer-events: none; z-index: 1;
+      position: absolute; inset: 0; pointer-events: none; z-index: -1;
       background:
-        radial-gradient(ellipse 70% 55% at 45% 45%, rgba(255,107,0,.18) 0%, transparent 65%),
-        radial-gradient(ellipse 50% 70% at 10% 80%, rgba(229,57,53,.1) 0%, transparent 55%),
-        radial-gradient(ellipse 40% 40% at 90% 20%, rgba(255,152,0,.08) 0%, transparent 50%);
+        radial-gradient(circle at 74% 50%, rgba(255,107,0,.22) 0%, transparent 42%),
+        radial-gradient(ellipse 60% 70% at 0% 100%, rgba(229,57,53,.08) 0%, transparent 60%);
     }
 
-    .ingredients {
-      position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1;
-    }
-    .ingr {
-      position: absolute; user-select: none; opacity: .11;
-      animation: floatA linear infinite;
-    }
-    @keyframes floatA {
-      0%   { transform: translateY(0px) rotate(0deg); }
-      33%  { transform: translateY(-18px) rotate(8deg); }
-      66%  { transform: translateY(-6px) rotate(-4deg); }
-      100% { transform: translateY(0px) rotate(0deg); }
-    }
-    @keyframes floatB {
-      0%   { transform: translateY(0px) rotate(0deg); }
-      40%  { transform: translateY(-22px) rotate(-10deg); }
-      70%  { transform: translateY(-8px) rotate(5deg); }
-      100% { transform: translateY(0px) rotate(0deg); }
+    .hero-grid {
+      width: 100%;
+      display: grid; grid-template-columns: 1.1fr .9fr;
+      align-items: center; gap: 4vw;
     }
 
-    .hero-content { position: relative; z-index: 2; max-width: 660px; }
+    .hero-content { position: relative; z-index: 2; max-width: 620px; }
 
     .hero-badge {
       display: inline-flex; align-items: center; gap: 8px;
       background: rgba(255,107,0,.12); border: 1px solid rgba(255,107,0,.28);
       color: var(--orange-lt); font-size: 13px; font-weight: 600;
-      padding: 7px 16px; border-radius: 50px; margin-bottom: 28px;
+      padding: 7px 16px; border-radius: 50px; margin-bottom: 26px;
       letter-spacing: .3px;
     }
-    .hero-badge::before { content: '●'; font-size: 9px; animation: blink 2s ease-in-out infinite; }
+    .hero-badge::before {
+      content: ''; width: 7px; height: 7px; border-radius: 50%;
+      background: currentColor; animation: blink 2s ease-in-out infinite;
+    }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
 
     .hero h1 {
       font-family: var(--font-h);
-      font-size: clamp(46px, 7.5vw, 88px);
-      font-weight: 900; line-height: 1.06; margin-bottom: 22px;
+      /* Cada línea mide ~7.3em: este clamp garantiza 2 líneas en cualquier ancho */
+      font-size: clamp(40px, 5.4vw, 84px);
+      font-weight: 900; line-height: 1.02; letter-spacing: -.02em;
+      margin-bottom: 24px;
     }
     .hero h1 .accent {
-      background: linear-gradient(135deg, var(--orange), var(--orange-lt));
+      font-style: italic;
+      background: linear-gradient(120deg, var(--orange) 10%, var(--orange-lt) 90%);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text; display: block;
+      background-clip: text;
+      padding-right: .08em;   /* que la itálica no se recorte */
     }
     .hero p {
-      font-size: clamp(16px, 1.8vw, 19px);
-      color: #999; line-height: 1.75; margin-bottom: 38px; max-width: 500px;
+      font-size: clamp(16px, 1.4vw, 19px);
+      color: var(--muted); line-height: 1.7; margin-bottom: 36px; max-width: 480px;
     }
 
-    .hero-btns { display: flex; gap: 14px; flex-wrap: wrap; }
+    .hero-btns { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 
     .btn-primary {
-      display: inline-block;
+      display: inline-flex; align-items: center; gap: 10px;
       background: linear-gradient(135deg, var(--orange), var(--orange-lt));
       color: white; font-weight: 700; font-size: 16px;
-      padding: 15px 34px; border-radius: 50px;
-      box-shadow: 0 4px 22px rgba(255,107,0,.38); transition: var(--t);
+      padding: 16px 30px; border-radius: 50px; border: none; cursor: pointer;
+      box-shadow: 0 4px 22px rgba(255,107,0,.38);
+      transition: translate var(--t), box-shadow var(--t);
     }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(255,107,0,.5); }
+    .btn-primary:hover { translate: 0 -2px; box-shadow: 0 10px 34px rgba(255,107,0,.55); }
+    .btn-primary .ico-flecha { transition: translate var(--t); }
+    .btn-primary:hover .ico-flecha { translate: 4px 0; }
 
     .btn-outline {
-      display: inline-block;
+      display: inline-flex; align-items: center; gap: 8px;
       background: transparent; color: var(--text); font-weight: 600; font-size: 16px;
-      padding: 15px 34px; border-radius: 50px;
-      border: 2px solid var(--border); transition: var(--t);
+      padding: 14px 28px; border-radius: 50px;
+      border: 2px solid var(--border); transition: border-color var(--t), color var(--t);
     }
     .btn-outline:hover { border-color: var(--orange); color: var(--orange-lt); }
 
+    /* Datos de confianza bajo los botones */
+    .hero-datos {
+      list-style: none; display: flex; flex-wrap: wrap; gap: 8px 22px;
+      margin-top: 34px; font-size: 13px; color: var(--muted);
+    }
+    .hero-datos li { display: inline-flex; align-items: center; gap: 7px; }
+    .hero-datos .ico { color: var(--orange-lt); }
+
+    /* ---- La pizza ---- */
+    .hero-visual {
+      position: relative; justify-self: end;
+      width: min(100%, 520px); aspect-ratio: 1;
+    }
+    .pizza-halo {
+      position: absolute; inset: -14%; border-radius: 50%; z-index: -1;
+      background: radial-gradient(circle, rgba(255,120,0,.35) 0%, rgba(255,107,0,.08) 45%, transparent 68%);
+    }
+    .pizza-giro {
+      width: 100%; height: 100%; border-radius: 50%;
+      box-shadow: 0 50px 90px -30px rgba(0,0,0,.9), 0 0 0 10px rgba(255,255,255,.025), 0 0 0 1px rgba(255,255,255,.06);
+    }
+    .pizza-disco { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+    /* Sello circular con texto que gira (SVG textPath) */
+    .pizza-sello {
+      position: absolute; top: 2%; left: -2%;
+      width: clamp(96px, 11vw, 140px); aspect-ratio: 1; border-radius: 50%;
+      background: var(--bg); border: 1px solid rgba(255,107,0,.35);
+      display: grid; place-items: center;
+      box-shadow: 0 12px 30px rgba(0,0,0,.5);
+    }
+    .pizza-sello svg.sello-texto {
+      position: absolute; inset: 6%; width: 88%; height: 88%;
+      animation: girar 18s linear infinite;
+    }
+    .pizza-sello text { fill: var(--orange-lt); font: 700 9.5px var(--font-b); text-transform: uppercase; }
+    .pizza-sello .ico { width: 30%; height: 30%; color: var(--orange); }
+    @keyframes girar { to { transform: rotate(360deg); } }
+
     .scroll-hint {
-      position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+      position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
       display: flex; flex-direction: column; align-items: center; gap: 8px;
       color: var(--muted); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
     }
     .scroll-hint::after {
-      content: ''; width: 1px; height: 38px;
+      content: ''; width: 1px; height: 34px;
       background: linear-gradient(to bottom, var(--muted), transparent);
+      transform-origin: top; animation: pista 2.2s var(--ease) infinite;
     }
+    @keyframes pista { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); } 100% { transform: scaleY(1); opacity: 0; } }
+
+    /* ============================================
+       CINTA DE SABORES
+    ============================================ */
+    .cinta {
+      background: var(--orange); color: #140800;
+      padding: 18px 0; rotate: -1.5deg; scale: 1.02;
+      position: relative; z-index: 2; margin: -10px 0;
+    }
+    .cinta-set { align-items: center; gap: 28px; padding-right: 28px; }
+    .cinta-set span {
+      font-family: var(--font-h); font-style: italic; font-weight: 900;
+      font-size: clamp(24px, 3vw, 38px); white-space: nowrap; line-height: 1;
+    }
+    .cinta-set span:nth-child(4n+3) { color: transparent; -webkit-text-stroke: 1.5px #140800; }
+    .cinta-set .ico { width: 22px; height: 22px; stroke-width: 2.4; }
 
     /* ============================================
        GENERAL SECTION STYLES
     ============================================ */
-    section { padding: 86px 5vw; }
+    section { padding: 112px var(--gutter); }
 
     .label {
-      font-size: 11px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+      font-size: 12px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
       color: var(--orange); margin-bottom: 12px;
       display: flex; align-items: center; gap: 10px;
     }
@@ -222,8 +292,8 @@
 
     .sec-title {
       font-family: var(--font-h);
-      font-size: clamp(28px, 4.5vw, 46px);
-      font-weight: 700; line-height: 1.15; margin-bottom: 14px;
+      font-size: clamp(34px, 4.6vw, 58px);
+      font-weight: 700; line-height: 1.08; letter-spacing: -.015em; margin-bottom: 16px;
     }
     .sec-sub {
       font-size: 16px; color: var(--muted); line-height: 1.75;
@@ -251,15 +321,39 @@
     .features {
       display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 36px;
     }
+    /* Hover con "translate" (propiedad individual) en vez de "transform":
+       así no choca con GSAP, que anima "transform" en las entradas. */
     .feature {
       background: var(--surface2); border: 1px solid var(--border);
-      border-radius: var(--r); padding: 18px 16px;
-      transition: border-color var(--t), transform var(--t);
+      border-radius: var(--r); padding: 20px 18px;
+      transition: border-color var(--t), translate var(--t);
     }
-    .feature:hover { border-color: rgba(255,107,0,.5); transform: translateY(-2px); }
-    .feature-icon { font-size: 26px; margin-bottom: 8px; }
-    .feature h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
-    .feature p { font-size: 12px; color: var(--muted); line-height: 1.55; }
+    .feature:hover { border-color: rgba(255,107,0,.5); translate: 0 -3px; }
+    .feature-icon {
+      width: 42px; height: 42px; border-radius: 12px; margin-bottom: 14px;
+      display: grid; place-items: center;
+      background: rgba(255,107,0,.12); color: var(--orange-lt);
+    }
+    .feature-icon .ico { width: 22px; height: 22px; }
+    .feature h4 { font-size: 15px; font-weight: 700; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+    .feature p { font-size: 14px; color: var(--muted); line-height: 1.55; }
+
+    .nosotros-foto {
+      position: relative; aspect-ratio: 4/5; max-height: 640px; width: 100%;
+      border-radius: calc(var(--r) * 1.5); overflow: hidden; background: var(--surface2);
+    }
+    .nosotros-foto img {
+      position: absolute; left: 0; right: 0; top: -8%;
+      width: 100%; height: 116%; object-fit: cover;
+    }
+    .foto-etiqueta {
+      position: absolute; left: 16px; bottom: 16px;
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(13,13,13,.75); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,.08);
+      padding: 9px 14px; border-radius: 50px; font-size: 13px; font-weight: 600;
+    }
+    .foto-etiqueta .ico { color: var(--orange-lt); }
 
     /* ============================================
        MENÚ
@@ -269,19 +363,30 @@
     .menu-tabs {
       display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 38px;
     }
+    /* El fondo naranja de la pestaña activa es un ::before que crece con
+       transform (scale): animación barata y fluida. */
     .menu-tab {
-      padding: 10px 22px; border-radius: 50px; font-size: 14px; font-weight: 600;
+      position: relative; isolation: isolate; overflow: hidden;
+      min-height: 44px; padding: 10px 24px; border-radius: 50px;
+      font-size: 15px; font-weight: 600;
       border: 2px solid var(--border); background: transparent; color: var(--muted);
-      cursor: pointer; transition: var(--t);
+      cursor: pointer; transition: color var(--t), border-color var(--t);
     }
-    .menu-tab.active { background: var(--orange); border-color: var(--orange); color: white; }
+    .menu-tab::before {
+      content: ''; position: absolute; inset: 0; z-index: -1;
+      background: linear-gradient(135deg, var(--orange), var(--orange-lt));
+      transform: scale(.4); opacity: 0;
+      transition: transform .4s var(--ease), opacity .25s ease;
+    }
+    .menu-tab.active { border-color: var(--orange); color: white; }
+    .menu-tab.active::before { transform: scale(1); opacity: 1; }
     .menu-tab:not(.active):hover { border-color: var(--orange); color: var(--orange-lt); }
 
     .menu-panel { display: none; }
     .menu-panel.active { display: block; }
 
     .menu-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px;
     }
 
     /* Pizza tamaños — ocupa todo el ancho */
@@ -295,7 +400,10 @@
       background: linear-gradient(90deg, rgba(255,107,0,.1), transparent);
       display: flex; align-items: center; gap: 12px;
     }
-    .sizes-header h3 { font-size: 16px; font-weight: 700; }
+    .sizes-header h3 { font-size: 17px; font-weight: 700; }
+    .sizes-nota, .tags-nota { font-size: 14px; color: var(--muted); line-height: 1.5; }
+    .sizes-nota { padding: 14px 22px 0; }
+    .tags-nota { margin: -6px 0 14px; }
     .badge {
       font-size: 11px; font-weight: 700; padding: 3px 10px;
       border-radius: 50px; color: white;
@@ -311,10 +419,11 @@
     }
     .sizes-table.cols4 { grid-template-columns: repeat(4, 1fr); }
 
-    .sz { text-align: center; padding: 4px 0; }
-    .sz-name  { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
-    .sz-info  { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
-    .sz-price { font-size: 16px; font-weight: 700; color: var(--orange-lt); }
+    .sz { text-align: center; padding: 8px 0; border-radius: 12px; transition: background var(--t); }
+    .sz:hover { background: rgba(255,255,255,.03); }
+    .sz-name  { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+    .sz-info  { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    .sz-price { font-size: 19px; font-weight: 700; color: var(--orange-lt); font-variant-numeric: tabular-nums; }
 
     /* Sabores tags block */
     .tags-block {
@@ -326,8 +435,8 @@
     .tags { display: flex; flex-wrap: wrap; gap: 8px; }
     .tag {
       background: var(--surface2); border: 1px solid var(--border);
-      padding: 5px 14px; border-radius: 50px; font-size: 13px;
-      transition: var(--t); cursor: default;
+      padding: 7px 14px; border-radius: 50px; font-size: 14px;
+      transition: border-color var(--t), color var(--t), background var(--t); cursor: default;
     }
     .tag:hover { border-color: var(--orange); color: var(--orange-lt); }
 
@@ -335,61 +444,81 @@
     .menu-card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--r); overflow: hidden;
-      transition: transform var(--t), border-color var(--t), box-shadow var(--t);
+      display: flex; flex-direction: column;
+      transition: translate var(--t), border-color var(--t), box-shadow var(--t);
     }
     .menu-card:hover {
-      transform: translateY(-4px); border-color: rgba(255,107,0,.5);
-      box-shadow: 0 12px 28px rgba(0,0,0,.35);
+      translate: 0 -4px; border-color: rgba(255,107,0,.5);
+      box-shadow: 0 18px 40px rgba(0,0,0,.45);
     }
+    /* ---- Espacio para la foto del producto ----
+       Con <img> adentro se ve la foto. Sin <img> (o si la foto no carga)
+       se ve este marcador "Foto próximamente". */
     .card-img {
-      aspect-ratio: 16/10; background: var(--surface2);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 38px; color: var(--border);
-      border-bottom: 1px solid var(--border); position: relative;
+      aspect-ratio: 4/3; position: relative; overflow: hidden;
+      border-bottom: 1px solid var(--border);
+      background:
+        radial-gradient(circle at 50% 40%, rgba(255,107,0,.12), transparent 60%),
+        var(--surface2);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+      color: #5a5550; font-size: 12px; font-weight: 600; letter-spacing: .5px;
     }
+    .card-img::before {
+      content: ''; width: 34px; height: 34px; opacity: .5;
+      background: currentColor;
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z'/%3E%3Ccircle cx='12' cy='13' r='3'/%3E%3C/svg%3E") center / contain no-repeat;
+              mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z'/%3E%3Ccircle cx='12' cy='13' r='3'/%3E%3C/svg%3E") center / contain no-repeat;
+    }
+    .card-img::after { content: 'Foto próximamente'; opacity: .7; }
     .card-img img {
-      position: absolute; inset: 0;
+      position: absolute; inset: 0; z-index: 1;
       width: 100%; height: 100%;
       object-fit: cover; border: none;
+      transition: scale .6s var(--ease);
     }
-    .card-body { padding: 14px 16px 16px; }
-    .card-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-    .card-desc { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
-    .card-price { font-size: 17px; font-weight: 700; color: var(--orange-lt); }
-    .card-price small { font-size: 12px; font-weight: 400; color: var(--muted); }
+    .menu-card:hover .card-img img { scale: 1.06; }
+    .card-body { padding: 16px 18px 18px; display: flex; flex-direction: column; flex: 1; }
+    .card-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .card-desc { font-size: 14px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
+    .card-price { font-size: 19px; font-weight: 700; color: var(--orange-lt); font-variant-numeric: tabular-nums; }
+    .card-price small { font-size: 13px; font-weight: 400; color: var(--muted); }
 
     /* Tags dentro de batidos */
-    .tag-price { font-size: 12px; }
+    .tag-price { font-size: 13px; color: var(--muted); margin-left: 4px; }
 
     /* ============================================
        GALERÍA
     ============================================ */
     #galeria { background: var(--surface); }
 
+    /* Mosaico "bento": filas de alto fijo + grid-auto-flow: dense
+       rellena los huecos solo. big = 2×2, wide = 2 columnas, tall = 2 filas. */
     .gallery-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
+      grid-auto-rows: 230px;
+      grid-auto-flow: dense;
       gap: 14px;
     }
     .gallery-item {
       background: var(--surface2); border: 1px solid var(--border);
-      border-radius: var(--r); overflow: hidden;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 42px; color: var(--border); position: relative;
-      aspect-ratio: 4/3; transition: transform var(--t);
-      cursor: pointer;
+      border-radius: var(--r); overflow: hidden; position: relative;
     }
-    .gallery-item:hover { transform: scale(1.01); }
-    .gallery-item.wide  { grid-column: span 2; aspect-ratio: 16/9; }
-    .gallery-item.tall  { grid-row: span 2; aspect-ratio: auto; }
+    .gallery-item.wide { grid-column: span 2; }
+    .gallery-item.tall { grid-row: span 2; }
+    .gallery-item.big  { grid-column: span 2; grid-row: span 2; }
 
-    .gallery-item img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+    .gallery-item img {
+      width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0;
+      transition: scale .8s var(--ease);
+    }
+    .gallery-item:hover img { scale: 1.06; }
     .img-contain { object-fit: contain !important; background: #1a1a1a; }
     .gallery-label {
       position: absolute; bottom: 0; left: 0; right: 0;
-      background: linear-gradient(transparent, rgba(0,0,0,.75));
-      padding: 24px 16px 12px;
-      font-size: 12px; color: #888; text-align: center;
+      background: linear-gradient(transparent, rgba(0,0,0,.8));
+      padding: 40px 18px 14px;
+      font-size: 14px; font-weight: 600; color: #fff;
     }
 
     /* ============================================
@@ -398,56 +527,73 @@
     #sucursales { background: var(--bg); }
 
     .sucursales-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 18px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 20px;
     }
 
     .suc-card {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--r); overflow: hidden;
-      transition: border-color var(--t), transform var(--t);
+      border-radius: calc(var(--r) * 1.25); overflow: hidden;
+      transition: border-color var(--t), translate var(--t);
     }
-    .suc-card:hover { border-color: rgba(255,107,0,.5); transform: translateY(-3px); }
+    .suc-card:hover { border-color: rgba(255,107,0,.5); translate: 0 -3px; }
 
     .suc-header {
-      padding: 18px 20px 14px;
+      padding: 22px 24px 16px;
       border-bottom: 1px solid var(--border);
       background: linear-gradient(135deg, rgba(255,107,0,.08), transparent);
     }
-    .suc-name  { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .suc-name  { font-family: var(--font-h); font-size: 26px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+    .suc-name .ico { color: var(--orange); width: 22px; height: 22px; }
     .suc-hours {
-      font-size: 12px; color: var(--muted);
-      display: flex; align-items: center; gap: 5px;
+      font-size: 14px; color: var(--muted);
+      display: flex; align-items: center; gap: 7px;
     }
-    .suc-hours::before { content: '🕐'; font-size: 11px; }
 
-    .suc-body { padding: 16px 20px 18px; }
+    .suc-body { padding: 18px 24px 22px; }
     .suc-phone {
-      font-size: 22px; font-weight: 700; color: var(--text);
-      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+      font-size: 24px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums;
+      margin-bottom: 16px; display: inline-flex; align-items: center; gap: 10px;
+      transition: color var(--t);
     }
-    .suc-phone::before { content: '📞'; font-size: 16px; }
+    .suc-phone .ico { color: var(--orange-lt); width: 20px; height: 20px; }
+    .suc-phone:hover { color: var(--orange-lt); }
 
-    .suc-btns { display: flex; gap: 8px; }
-    .btn-wa {
-      flex: 1; background: #25d366; color: white;
-      font-weight: 600; font-size: 13px; padding: 10px;
-      border-radius: 8px; text-align: center; border: none;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      transition: background var(--t);
+    .suc-btns { display: flex; gap: 10px; }
+    .btn-wa, .btn-map {
+      flex: 1; min-height: 46px; padding: 10px;
+      font-weight: 600; font-size: 14px; border-radius: 12px; text-align: center;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
     }
+    .btn-wa { background: #25d366; color: #fff; border: none; transition: background var(--t); }
     .btn-wa:hover { background: #1cb955; }
+    .btn-wa svg { width: 18px; height: 18px; fill: currentColor; }
     .btn-map {
-      flex: 1; background: var(--surface2); color: var(--text);
-      font-weight: 600; font-size: 13px; padding: 10px;
-      border-radius: 8px; text-align: center;
-      border: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      transition: var(--t);
+      background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+      transition: border-color var(--t), color var(--t);
     }
-    .btn-map:hover { border-color: #4285f4; color: #6ba3f5; }
+    .btn-map:hover { border-color: var(--orange); color: var(--orange-lt); }
 
-    .suc-map { aspect-ratio: 16/9; border-top: 1px solid var(--border); background: var(--surface2); }
+    /* Mapa "fachada": el iframe de Google (pesado) solo se carga al tocar */
+    .suc-map { aspect-ratio: 16/9; border-top: 1px solid var(--border); background: var(--surface2); position: relative; }
     .suc-map iframe { width: 100%; height: 100%; border: 0; display: block; filter: grayscale(.3) contrast(1.05); }
+    .mapa-cargar {
+      position: absolute; inset: 0; width: 100%; border: 0; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+      color: var(--text); font: 600 14px var(--font-b);
+      background:
+        radial-gradient(circle at 50% 45%, rgba(255,107,0,.16), transparent 55%),
+        repeating-linear-gradient(0deg, transparent 0 39px, rgba(255,255,255,.04) 39px 40px),
+        repeating-linear-gradient(90deg, transparent 0 39px, rgba(255,255,255,.04) 39px 40px),
+        var(--surface2);
+    }
+    .mapa-cargar .mapa-pin {
+      width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+      background: var(--orange); color: #fff; box-shadow: 0 8px 24px rgba(255,107,0,.45);
+      transition: scale var(--t);
+    }
+    .mapa-cargar .mapa-pin .ico { width: 24px; height: 24px; }
+    .mapa-cargar:hover .mapa-pin { scale: 1.08; }
+    .mapa-cargar small { color: var(--muted); font-weight: 500; font-size: 12px; }
 
     /* ============================================
        CARRITO / PEDIDOS ONLINE
@@ -466,23 +612,29 @@
       display: inline-block; animation: blink 2s ease-in-out infinite; flex-shrink: 0;
     }
     .promo-banner.closed .status-dot { background: #e53935; }
-    .promo-banner a {
-      background: var(--orange); color: white; padding: 4px 14px;
+    .promo-banner button {
+      background: var(--orange); color: white; padding: 6px 16px; border: none;
       border-radius: 50px; font-size: 12px; font-weight: 700;
       white-space: nowrap; cursor: pointer;
     }
 
+    /* El "+" se ve de 40px pero el área táctil (::after) llega a 44px+ */
     .add-btn {
+      position: relative;
       background: var(--orange); color: white; border: none;
-      width: 30px; height: 30px; border-radius: 50%;
-      font-size: 18px; font-weight: 700; line-height: 1; cursor: pointer;
+      width: 40px; height: 40px; border-radius: 50%;
+      font-size: 22px; font-weight: 600; line-height: 1; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      transition: var(--t); flex-shrink: 0;
+      box-shadow: 0 4px 14px rgba(255,107,0,.3);
+      transition: background var(--t), scale .15s var(--ease), box-shadow var(--t); flex-shrink: 0;
     }
-    .add-btn:hover { background: var(--orange-lt); transform: scale(1.08); }
-    .add-btn.small { width: 24px; height: 24px; font-size: 14px; margin: 8px auto 0; }
+    .add-btn::after { content: ''; position: absolute; inset: -6px; border-radius: 50%; }
+    .add-btn:hover { background: var(--orange-lt); scale: 1.08; box-shadow: 0 6px 20px rgba(255,107,0,.45); }
+    .add-btn:active { scale: .9; }
+    .add-btn.small { width: 36px; height: 36px; font-size: 20px; margin: 10px auto 0; }
+    .add-btn.small::after { inset: -5px; }
 
-    .card-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+    .card-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 10px; }
 
     .tag.tag-addable { cursor: pointer; }
     .tag.tag-addable:hover { border-color: var(--orange); background: rgba(255,107,0,.1); }
@@ -496,9 +648,11 @@
       color: white; border: none; font-size: 26px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       box-shadow: 0 8px 24px rgba(255,107,0,.45);
-      transition: transform var(--t);
+      transition: scale var(--t);
     }
-    .cart-fab:hover { transform: scale(1.06); }
+    .cart-fab:hover { scale: 1.06; }
+    .cart-fab .ico { width: 26px; height: 26px; }
+    .cart-fab-icono { display: grid; place-items: center; }
 
     .wa-fab {
       position: fixed; bottom: 24px; right: 96px; z-index: 1200;
@@ -506,9 +660,9 @@
       background: #25d366; color: white;
       display: flex; align-items: center; justify-content: center;
       box-shadow: 0 8px 24px rgba(37,211,102,.45);
-      transition: transform var(--t);
+      transition: scale var(--t);
     }
-    .wa-fab:hover { transform: scale(1.06); }
+    .wa-fab:hover { scale: 1.06; }
     .wa-fab svg { width: 28px; height: 28px; fill: white; }
     .cart-fab-badge {
       position: absolute; top: -4px; right: -4px;
@@ -537,14 +691,18 @@
       padding: 20px 22px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
     }
-    .cart-header h3 { font-family: var(--font-h); font-size: 20px; }
+    .cart-header h3 { font-family: var(--font-h); font-size: 22px; display: flex; align-items: center; gap: 10px; }
+    .cart-header h3 .ico { color: var(--orange); }
     .cart-close {
       background: var(--surface2); border: 1px solid var(--border); color: var(--text);
-      width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px;
+      width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+      display: grid; place-items: center;
     }
+    .cart-close:hover { border-color: var(--orange); }
 
     .cart-body { flex: 1; overflow-y: auto; padding: 16px 22px; }
-    .cart-empty { text-align: center; color: var(--muted); padding: 60px 10px; font-size: 14px; line-height: 1.8; }
+    .cart-empty { text-align: center; color: var(--muted); padding: 60px 10px; font-size: 15px; line-height: 1.8; }
+    .cart-empty .ico { width: 44px; height: 44px; color: var(--orange); opacity: .7; }
 
     .cart-item {
       display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border);
@@ -556,9 +714,9 @@
     .cart-item-price { font-size: 13px; color: var(--orange-lt); font-weight: 700; margin-top: 4px; }
     .cart-item-qty { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
     .qty-btn {
-      width: 26px; height: 26px; border-radius: 50%;
+      width: 34px; height: 34px; border-radius: 50%;
       background: var(--surface2); border: 1px solid var(--border); color: var(--text);
-      cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;
     }
     .qty-btn:hover { border-color: var(--orange); }
     .cart-item-remove {
@@ -576,10 +734,10 @@
       background: linear-gradient(135deg, var(--orange), var(--orange-lt));
       color: white; font-weight: 700; font-size: 15px;
       padding: 14px; border-radius: 50px; border: none; cursor: pointer;
-      transition: var(--t);
+      transition: translate var(--t), box-shadow var(--t), opacity var(--t);
     }
-    .cart-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,107,0,.4); }
-    .cart-btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .cart-btn-primary:hover { translate: 0 -1px; box-shadow: 0 6px 20px rgba(255,107,0,.4); }
+    .cart-btn-primary:disabled { opacity: .5; cursor: not-allowed; translate: none; box-shadow: none; }
 
     .cart-btn-back {
       background: none; border: none; color: var(--muted); font-size: 13px;
@@ -591,16 +749,17 @@
     .cf-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; display: block; }
     .cf-input, .cf-select, .cf-textarea {
       width: 100%; background: var(--surface2); border: 1px solid var(--border);
-      color: var(--text); padding: 11px 14px; border-radius: 10px; font-size: 14px;
+      color: var(--text); padding: 12px 14px; border-radius: 10px; font-size: 16px; /* 16px evita el zoom automático en iPhone */
       font-family: var(--font-b);
     }
-    .cf-input:focus, .cf-select:focus, .cf-textarea:focus { outline: none; border-color: var(--orange); }
+    .cf-input:focus, .cf-select:focus, .cf-textarea:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,107,0,.25); }
     .cf-textarea { resize: vertical; min-height: 60px; }
     .cf-radios { display: flex; gap: 10px; }
     .cf-radio {
       flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border);
-      background: var(--surface2); text-align: center; font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: var(--t);
+      background: var(--surface2); text-align: center; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: border-color var(--t), color var(--t), background var(--t);
+      min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px;
     }
     .cf-radio.active { border-color: var(--orange); color: var(--orange-lt); background: rgba(255,107,0,.1); }
 
@@ -643,12 +802,48 @@
       .cart-drawer { width: 100vw; }
     }
 
+    /* ---- Barra fija de pedido (solo celular) ---- */
+    .barra-pedir { display: none; }
+    @media (max-width: 768px) {
+      .barra-pedir {
+        position: fixed; left: 12px; right: 12px; z-index: 1200;
+        bottom: calc(12px + env(safe-area-inset-bottom));
+        display: flex; gap: 8px; padding: 8px;
+        background: rgba(22,22,22,.88);
+        backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255,255,255,.08); border-radius: 22px;
+        box-shadow: 0 12px 36px rgba(0,0,0,.55);
+      }
+      .bp-pedir {
+        flex: 1; min-height: 50px; border: none; border-radius: 16px; cursor: pointer;
+        background: linear-gradient(135deg, var(--orange), var(--orange-lt));
+        color: #fff; font-size: 16px; font-weight: 700;
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        box-shadow: 0 6px 20px rgba(255,107,0,.35);
+        transition: scale .15s var(--ease);
+      }
+      .bp-pedir:active { scale: .97; }
+      .bp-cuenta {
+        min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px;
+        background: #fff; color: var(--orange); font-size: 13px; font-weight: 800;
+        place-items: center;
+      }
+      .bp-wa {
+        width: 50px; min-height: 50px; border-radius: 16px; flex-shrink: 0;
+        background: #25d366; display: grid; place-items: center;
+      }
+      .bp-wa svg { width: 26px; height: 26px; fill: #fff; }
+      .cart-fab, .wa-fab { display: none; }
+      .cart-toast { right: 12px; left: 12px; text-align: center; bottom: calc(84px + env(safe-area-inset-bottom)); }
+      footer { padding-bottom: calc(110px + env(safe-area-inset-bottom)) !important; }
+    }
+
     /* ============================================
        FOOTER
     ============================================ */
     footer {
       background: #080808; border-top: 1px solid var(--border);
-      padding: 56px 5vw 30px;
+      padding: 72px var(--gutter) 104px;  /* espacio para los botones flotantes */
     }
     .footer-grid {
       display: grid; grid-template-columns: 2fr 1fr 1fr;
@@ -682,19 +877,16 @@
     }
 
     /* ============================================
-       SCROLL REVEAL
-    ============================================ */
-    .reveal {
-      opacity: 0; transform: translateY(28px);
-      transition: opacity .55s ease, transform .55s ease;
-    }
-    .reveal.vis { opacity: 1; transform: translateY(0); }
-
-    /* ============================================
        RESPONSIVE
     ============================================ */
     @media (max-width: 900px) {
+      .hero { padding-top: 28px; padding-bottom: 64px; }
+      .hero-grid { grid-template-columns: 1fr; gap: 8px; }
+      .hero-visual { order: -1; justify-self: center; width: min(62vw, 300px); margin-bottom: 18px; }
+      .hero-content { max-width: none; }
+      .scroll-hint { display: none; }
       .nosotros-grid { grid-template-columns: 1fr; gap: 36px; }
+      .nosotros-foto { aspect-ratio: 4/3; }
       .sizes-table { grid-template-columns: repeat(3, 1fr); }
       .sizes-table.cols4 { grid-template-columns: repeat(2, 1fr); }
       .footer-grid { grid-template-columns: 1fr 1fr; }
@@ -704,91 +896,123 @@
     @media (max-width: 768px) {
       .nav-links { display: none; }
       .hamburger { display: flex; }
-      .gallery-item.wide { grid-column: span 1; aspect-ratio: 4/3; }
-      .gallery-item.tall { grid-row: span 1; aspect-ratio: 4/3; }
+      .gallery-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 170px; gap: 10px; }
+      .gallery-item.wide, .gallery-item.tall { grid-column: span 1; grid-row: span 1; }
+      .gallery-label { padding: 30px 12px 10px; font-size: 13px; }
     }
 
     @media (max-width: 540px) {
-      section { padding: 64px 5vw; }
-      .hero-btns { flex-direction: column; }
+      section { padding: 80px 5vw; }
+      .hero-btns { flex-direction: column; align-items: stretch; }
+      .hero-btns > * { justify-content: center; }
       .features { grid-template-columns: 1fr 1fr; }
       .sizes-table { grid-template-columns: repeat(2, 1fr); }
       .sizes-table.cols4 { grid-template-columns: repeat(2, 1fr); }
-      .gallery-grid { grid-template-columns: 1fr 1fr; }
       .footer-grid { grid-template-columns: 1fr; gap: 28px; }
       .footer-bottom { flex-direction: column; gap: 8px; text-align: center; }
     }
 
     @media (max-width: 360px) {
       .features { grid-template-columns: 1fr; }
-      .gallery-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
 
+  <!-- ===================== ÍCONOS (sprite SVG, estilo Lucide) =====================
+       Uso: <svg class="ico"><use href="#i-telefono"/></svg> -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-telefono" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-reloj" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-bolsa" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></symbol>
+    <symbol id="i-tienda" viewBox="0 0 24 24"><path d="M3 9h18l-1.5-5h-15Z"/><path d="M5 9v11h14V9"/><path d="M10 20v-5h4v5"/></symbol>
+    <symbol id="i-hoja" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></symbol>
+    <symbol id="i-pizza" viewBox="0 0 24 24"><path d="M15 11h.01"/><path d="M11 15h.01"/><path d="M16 16h.01"/><path d="m2 16 20 6-6-20A20 20 0 0 0 2 16"/><path d="M5.71 17.11a17.04 17.04 0 0 1 11.4-11.4"/></symbol>
+    <symbol id="i-flecha" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+    <symbol id="i-cerrar" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-chispa" viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M3 12h18"/><path d="m5.6 5.6 12.8 12.8"/><path d="m18.4 5.6-12.8 12.8"/></symbol>
+    <symbol id="i-camara" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+    <symbol id="i-mapa" viewBox="0 0 24 24"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></symbol>
+  </svg>
+
+  <div class="progreso" data-progreso aria-hidden="true"></div>
+
   <!-- ===================== NAVBAR ===================== -->
-  <nav id="navbar">
-    <a href="#inicio"><img src="img/Logo.jpeg" alt="Pizza Yaja" class="nav-logo-img"></a>
+  <nav id="navbar" data-nav-ocultar>
+    <a href="#inicio"><img src="img/Logo.jpeg" alt="Pizza Yaja" class="nav-logo-img" width="56" height="54"></a>
     <ul class="nav-links">
       <li><a href="#nosotros">Nosotros</a></li>
       <li><a href="#menu">Menú</a></li>
       <li><a href="#galeria">Galería</a></li>
       <li><a href="#sucursales">Sucursales</a></li>
-      <li><a href="tel:+50685756873" class="nav-cta">📞 Llamar</a></li>
+      <li><a href="tel:+50685756873" class="nav-cta"><svg class="ico"><use href="#i-telefono"/></svg>Llamar</a></li>
     </ul>
     <button class="hamburger" id="ham" aria-label="Menú">
       <span></span><span></span><span></span>
     </button>
   </nav>
 
-  <div class="mobile-menu" id="mob">
+  <div class="mobile-menu" id="mob" data-lenis-prevent>
     <a href="#nosotros"  onclick="closeMob()">Nosotros</a>
     <a href="#menu"      onclick="closeMob()">Menú</a>
     <a href="#galeria"   onclick="closeMob()">Galería</a>
     <a href="#sucursales" onclick="closeMob()">Sucursales</a>
-    <a href="tel:+50685756873" class="mob-cta" onclick="closeMob()">📞 Llamar Ahora</a>
+    <a href="tel:+50685756873" class="mob-cta" onclick="closeMob()"><svg class="ico"><use href="#i-telefono"/></svg>Llamar ahora</a>
   </div>
 
   <!-- ===================== BANNER PEDIDOS ONLINE ===================== -->
   <div class="promo-banner" id="promoBanner">
     <span class="status-dot"></span>
     <span id="promoStatus">Abierto ahora</span>
-    <span>· Pedí en línea y saltate la fila 🚀</span>
-    <a onclick="abrirCarrito()">Pedir ahora</a>
+    <span>· Pedí en línea y saltate la fila</span>
+    <button type="button" onclick="abrirCarrito()">Pedir ahora</button>
   </div>
 
-  <!-- ===================== HERO ===================== -->
+  <!-- ===================== HERO =====================
+       Momento wow: la pizza entra girando al cargar y sigue girando con el scroll.
+       Los botones NO se animan: se pueden tocar desde el primer instante. -->
   <section class="hero" id="inicio">
-    <div class="hero-glow"></div>
-    <div class="ingredients">
-      <span class="ingr" style="top:8%;left:4%;font-size:66px;animation-duration:7.5s">🍕</span>
-      <span class="ingr" style="top:18%;left:78%;font-size:44px;animation-duration:9s;animation-delay:1.2s;animation-name:floatB">🍅</span>
-      <span class="ingr" style="top:62%;left:7%;font-size:40px;animation-duration:8.2s;animation-delay:2s">🫑</span>
-      <span class="ingr" style="top:72%;left:66%;font-size:60px;animation-duration:6.8s;animation-delay:.5s;animation-name:floatB">🍕</span>
-      <span class="ingr" style="top:28%;left:54%;font-size:42px;animation-duration:10s;animation-delay:3s">🧀</span>
-      <span class="ingr" style="top:82%;left:38%;font-size:36px;animation-duration:7s;animation-delay:1.8s;animation-name:floatB">🫒</span>
-      <span class="ingr" style="top:5%;left:38%;font-size:38px;animation-duration:8.6s;animation-delay:.9s">🌶️</span>
-      <span class="ingr" style="top:52%;left:88%;font-size:40px;animation-duration:9.5s;animation-delay:2.8s;animation-name:floatB">🧄</span>
-      <span class="ingr" style="top:44%;left:2%;font-size:34px;animation-duration:11s;animation-delay:4s">🍄</span>
-      <span class="ingr" style="top:90%;left:82%;font-size:48px;animation-duration:8s;animation-delay:1.5s">🍕</span>
-    </div>
+    <div class="hero-glow" aria-hidden="true"></div>
 
-    <div class="hero-content">
-      <div class="hero-badge">Abierto todos los días &middot; 11am – 10pm</div>
-      <h1>
-        Auténtico sabor,
-        <span class="accent">en cada porción</span>
-      </h1>
-      <p>Las mejores pizzas artesanales de la zona, hechas con ingredientes frescos y el amor que cada platillo merece. Encontranos en Cariari y Guápiles.</p>
-      <div class="hero-btns">
-        <a onclick="abrirCarrito()" class="btn-primary">🛒 Pedir Ahora</a>
-        <a href="#menu" class="btn-outline">Ver Menú Completo</a>
-        <a href="#sucursales" class="btn-outline">Nuestras Sucursales</a>
+    <div class="hero-grid">
+      <div class="hero-content" data-hero-texto>
+        <div class="hero-badge" data-anim-hero>Abierto todos los días &middot; 11am – 10pm</div>
+        <h1 data-anim="lineas">
+          <span class="linea"><span>Auténtico sabor,</span></span>
+          <span class="linea"><span class="accent">en cada porción</span></span>
+        </h1>
+        <p data-anim-hero>Las mejores pizzas artesanales de la zona, hechas con ingredientes frescos y el amor que cada platillo merece. Encontranos en Cariari y Guápiles.</p>
+        <div class="hero-btns">
+          <button type="button" onclick="abrirCarrito()" class="btn-primary">
+            <svg class="ico"><use href="#i-bolsa"/></svg>Pedir ahora<svg class="ico ico-flecha"><use href="#i-flecha"/></svg>
+          </button>
+          <a href="#menu" class="btn-outline">Ver el menú</a>
+        </div>
+        <ul class="hero-datos" data-anim-hero>
+          <li><svg class="ico"><use href="#i-pin"/></svg>Cariari y Guápiles</li>
+          <li><svg class="ico"><use href="#i-pizza"/></svg>17 sabores</li>
+          <li><svg class="ico"><use href="#i-bolsa"/></svg>Recoger o a domicilio</li>
+        </ul>
+      </div>
+
+      <div class="hero-visual" data-anim="pizza-hero">
+        <div class="pizza-halo" aria-hidden="true"></div>
+        <div class="pizza-giro">
+          <img class="pizza-disco" src="img/pizza-hero.webp" width="840" height="840"
+               alt="Pizza artesanal de Pizza Yaja recién salida del horno" fetchpriority="high">
+        </div>
+        <div class="pizza-sello" aria-hidden="true">
+          <svg class="sello-texto" viewBox="0 0 100 100">
+            <defs><path id="sello-circulo" d="M50,50 m-38,0 a38,38 0 1,1 76,0 a38,38 0 1,1 -76,0"/></defs>
+            <text textLength="236" lengthAdjust="spacing"><textPath href="#sello-circulo">Hecha al momento · Pizza Yaja · </textPath></text>
+          </svg>
+          <svg class="ico"><use href="#i-pizza"/></svg>
+        </div>
       </div>
     </div>
 
-    <div class="scroll-hint">Explorar</div>
+    <div class="scroll-hint" aria-hidden="true">Explorar</div>
   </section>
 
   <!-- ===================== NOSOTROS ===================== -->
@@ -796,58 +1020,91 @@
     <div class="nosotros-grid">
       <div>
         <div class="label">Sobre Nosotros</div>
-        <h2 class="sec-title">Una pizzería con sabor y tradición</h2>
+        <h2 class="sec-title" data-anim="subir">Una pizzería con sabor y tradición</h2>
         <p style="color:var(--muted);line-height:1.85;font-size:16px;max-width:480px">
           En Pizza Yaja llevamos años preparando pizzas con los mejores ingredientes y el amor que cada platillo merece. Somos más que una pizzería — somos el lugar donde la familia y los amigos se reúnen a disfrutar.
         </p>
-        <div class="features">
-          <div class="feature reveal">
-            <div class="feature-icon">🍅</div>
+        <div class="features" data-anim="cascada">
+          <div class="feature">
+            <div class="feature-icon"><svg class="ico"><use href="#i-hoja"/></svg></div>
             <h4>Ingredientes frescos</h4>
             <p>Seleccionamos los mejores ingredientes para cada pizza</p>
           </div>
-          <div class="feature reveal">
-            <div class="feature-icon">🏪</div>
+          <div class="feature">
+            <div class="feature-icon"><svg class="ico"><use href="#i-tienda"/></svg></div>
             <h4>2 Sucursales</h4>
             <p>Cariari y Guápiles, listas para atenderte</p>
           </div>
-          <div class="feature reveal">
-            <div class="feature-icon">⏰</div>
+          <div class="feature">
+            <div class="feature-icon"><svg class="ico"><use href="#i-reloj"/></svg></div>
             <h4>Todos los días</h4>
             <p>Abiertos de 11am a 10pm sin excepción</p>
           </div>
-          <div class="feature reveal">
-            <div class="feature-icon">🍕</div>
-            <h4>+17 Sabores</h4>
+          <div class="feature">
+            <div class="feature-icon"><svg class="ico"><use href="#i-pizza"/></svg></div>
+            <h4>+<span data-anim="contador">17</span> Sabores</h4>
             <p>Variedad de pizzas para todos los gustos</p>
           </div>
         </div>
       </div>
-      <div style="aspect-ratio:4/3;border-radius:var(--r);overflow:hidden;background:var(--surface2)">
-        <img src="img/suprema.jpeg"
-             alt="Pizza Yaja" loading="lazy"
-             style="width:100%;height:100%;object-fit:cover;display:block">
+      <div class="nosotros-foto" data-anim="zoom">
+        <img src="img/suprema.jpeg" alt="Pizza artesanal de Pizza Yaja" loading="lazy" width="1600" height="1066" data-velocidad="-6">
+        <span class="foto-etiqueta"><svg class="ico"><use href="#i-chispa"/></svg>Hecha al momento, todos los días</span>
       </div>
     </div>
   </section>
 
-  <!-- ===================== MENÚ ===================== -->
+  <!-- ===================== CINTA DE SABORES =====================
+       Dos copias idénticas del set: así el bucle no se nota al reiniciar -->
+  <div class="cinta" data-anim="cinta" data-duracion="45" aria-hidden="true">
+    <div class="cinta-pista">
+      <div class="cinta-set">
+        <span>Birria</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Hawaiana</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Pepperoni</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Mar y Tierra</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Suprema</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Mexicana</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Chicharrón</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Camarones</span><svg class="ico"><use href="#i-chispa"/></svg>
+      </div>
+      <div class="cinta-set">
+        <span>Birria</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Hawaiana</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Pepperoni</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Mar y Tierra</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Suprema</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Mexicana</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Chicharrón</span><svg class="ico"><use href="#i-chispa"/></svg>
+        <span>Camarones</span><svg class="ico"><use href="#i-chispa"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MENÚ =====================
+       FOTOS DE PRODUCTOS (cuando lleguen):
+       1. Guardá la foto en web/img/ (ideal: horizontal 4:3, unos 1200px de ancho).
+       2. En la tarjeta, dentro de <div class="card-img">, poné o cambiá:
+            <img src="img/NOMBRE.jpeg" alt="Nombre del producto" loading="lazy">
+       Si una tarjeta tiene <div class="card-img"></div> vacío, se muestra
+       automáticamente el marcador "Foto próximamente". -->
+
   <section id="menu">
     <div class="label">Lo que ofrecemos</div>
-    <h2 class="sec-title">Nuestro Menú</h2>
-    <p class="sec-sub">Pizzas artesanales, calzones, pastas y una variedad de bebidas para acompañar tu experiencia perfecta.</p>
+    <h2 class="sec-title" data-anim="subir">Nuestro Menú</h2>
+    <p class="sec-sub" data-anim="subir">Pizzas artesanales, calzones, pastas y una variedad de bebidas para acompañar tu experiencia perfecta.</p>
 
-    <div class="menu-tabs">
-      <button class="menu-tab active" onclick="setTab('pizzas',this)">🍕 Pizzas</button>
-      <button class="menu-tab" onclick="setTab('calzones',this)">🥙 Calzones</button>
-      <button class="menu-tab" onclick="setTab('pastas',this)">🍝 Pastas</button>
-      <button class="menu-tab" onclick="setTab('batidos',this)">🥤 Batidos</button>
-      <button class="menu-tab" onclick="setTab('bebidas',this)">☕ Bebidas</button>
+    <div class="menu-tabs" data-anim="subir">
+      <button class="menu-tab active" onclick="setTab('pizzas',this)">Pizzas</button>
+      <button class="menu-tab" onclick="setTab('calzones',this)">Calzones</button>
+      <button class="menu-tab" onclick="setTab('pastas',this)">Pastas</button>
+      <button class="menu-tab" onclick="setTab('batidos',this)">Batidos</button>
+      <button class="menu-tab" onclick="setTab('bebidas',this)">Bebidas</button>
     </div>
 
     <!-- PIZZAS -->
     <div class="menu-panel active" id="panel-pizzas">
-      <div class="menu-grid">
+      <div class="menu-grid" data-anim="cascada">
         <div class="sizes-block">
           <div class="sizes-header">
             <h3>Pizzas Individuales</h3>
@@ -867,7 +1124,7 @@
             <h3>Pizzas 2×1</h3>
             <span class="badge badge-red">¡Llevate dos!</span>
           </div>
-          <p style="font-size:13px;opacity:.75;margin:-4px 0 10px">
+          <p class="sizes-nota">
             La primera pizza va de Jamón y Queso. Cambiarla de sabor cuesta ₡1.000 más.
           </p>
           <div class="sizes-table cols4">
@@ -880,7 +1137,7 @@
 
         <div class="tags-block">
           <h3>Sabores disponibles</h3>
-          <p style="font-size:13px;opacity:.75;margin:-4px 0 10px">
+          <p class="tags-nota">
             Los sabores marcados con ★ tienen un recargo de ₡2.000.
           </p>
           <div class="tags">
@@ -908,8 +1165,8 @@
 
     <!-- CALZONES -->
     <div class="menu-panel" id="panel-calzones">
-      <div class="menu-grid">
-        <div class="menu-card reveal">
+      <div class="menu-grid" data-anim="cascada">
+        <div class="menu-card">
           <div class="card-img">
             <img src="img/jyq.jpeg" alt="Calzone Jamón y Queso" loading="lazy">
           </div>
@@ -922,7 +1179,7 @@
             </div>
           </div>
         </div>
-        <div class="menu-card reveal">
+        <div class="menu-card">
           <div class="card-img">
             <img src="img/calzones.jpeg" alt="Calzone Extra Queso" loading="lazy">
           </div>
@@ -935,7 +1192,7 @@
             </div>
           </div>
         </div>
-        <div class="menu-card reveal">
+        <div class="menu-card">
           <div class="card-img">
             <img src="img/calzones.jpeg" alt="Calzone Sabor a Elegir" loading="lazy">
           </div>
@@ -948,7 +1205,7 @@
             </div>
           </div>
         </div>
-        <div class="menu-card reveal">
+        <div class="menu-card">
           <div class="card-img">
             <img src="img/suprema.jpeg" alt="Calzone Grande" loading="lazy">
           </div>
@@ -966,8 +1223,8 @@
 
     <!-- PASTAS -->
     <div class="menu-panel" id="panel-pastas">
-      <div class="menu-grid">
-        <div class="menu-card reveal">
+      <div class="menu-grid" data-anim="cascada">
+        <div class="menu-card">
           <div class="card-img">
             <img src="https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=600&auto=format&fit=crop&q=80" alt="Spaguettis" loading="lazy" onerror="this.style.display='none'">
           </div>
@@ -980,7 +1237,7 @@
             </div>
           </div>
         </div>
-        <div class="menu-card reveal">
+        <div class="menu-card">
           <div class="card-img">
             <img src="https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80" alt="Lasaña" loading="lazy" onerror="this.style.display='none'">
           </div>
@@ -998,7 +1255,7 @@
 
     <!-- BATIDOS -->
     <div class="menu-panel" id="panel-batidos">
-      <div class="menu-grid">
+      <div class="menu-grid" data-anim="cascada">
         <div class="sizes-block">
           <div class="sizes-header">
             <h3>Batidos en Agua</h3>
@@ -1055,38 +1312,38 @@
 
     <!-- BEBIDAS -->
     <div class="menu-panel" id="panel-bebidas">
-      <div class="menu-grid">
-        <div class="menu-card reveal">
+      <div class="menu-grid" data-anim="cascada">
+        <div class="menu-card">
           <div class="card-img">
             <img src="img/cafe.jpeg" alt="Café Negro" loading="lazy" class="img-contain">
           </div>
           <div class="card-body"><div class="card-name">Café Negro</div><div class="card-footer"><div class="card-price">₡700</div><button class="add-btn" onclick='agregarAlCarrito("Café Negro", 700)'>+</button></div></div>
         </div>
-        <div class="menu-card reveal">
+        <div class="menu-card">
           <div class="card-img">
             <img src="img/cafeLatte1.jpeg" alt="Café con Leche" loading="lazy">
           </div>
           <div class="card-body"><div class="card-name">Café con Leche</div><div class="card-footer"><div class="card-price">₡1,000</div><button class="add-btn" onclick='agregarAlCarrito("Café con Leche", 1000)'>+</button></div></div>
         </div>
-        <div class="menu-card reveal">
+        <div class="menu-card">
           <div class="card-img">
             <img src="img/cafe.jpeg" alt="Chocolate" loading="lazy" class="img-contain">
           </div>
           <div class="card-body"><div class="card-name">Chocolate</div><div class="card-footer"><div class="card-price">₡1,000</div><button class="add-btn" onclick='agregarAlCarrito("Chocolate", 1000)'>+</button></div></div>
         </div>
-        <div class="menu-card reveal">
+        <div class="menu-card">
           <div class="card-img">
             <img src="img/cafeLatte2.jpeg" alt="Capuchino" loading="lazy">
           </div>
           <div class="card-body"><div class="card-name">Capuchino</div><div class="card-footer"><div class="card-price">₡1,300</div><button class="add-btn" onclick='agregarAlCarrito("Capuchino", 1300)'>+</button></div></div>
         </div>
-        <div class="menu-card reveal">
+        <div class="menu-card">
           <div class="card-img">
             <img src="https://images.unsplash.com/photo-1497935586351-b67a49e012bf?w=600&auto=format&fit=crop&q=80" alt="Capuchino con Chantilly" loading="lazy" onerror="this.style.display='none'">
           </div>
           <div class="card-body"><div class="card-name">Capuchino con Chantilly</div><div class="card-footer"><div class="card-price">₡1,500</div><button class="add-btn" onclick='agregarAlCarrito("Capuchino con Chantilly", 1500)'>+</button></div></div>
         </div>
-        <div class="menu-card reveal">
+        <div class="menu-card">
           <div class="card-img">
             <img src="img/batidoFresaLogo.jpeg" alt="Milkshakes" loading="lazy">
           </div>
@@ -1106,67 +1363,67 @@
   <!-- ===================== GALERÍA ===================== -->
   <section id="galeria">
     <div class="label">Nuestras fotos</div>
-    <h2 class="sec-title">Galería</h2>
-    <p class="sec-sub">Una muestra de lo mejor que hacemos en Pizza Yaja.</p>
+    <h2 class="sec-title" data-anim="subir">Galería</h2>
+    <p class="sec-sub" data-anim="subir">Una muestra de lo mejor que hacemos en Pizza Yaja.</p>
 
-    <div class="gallery-grid">
-      <div class="gallery-item wide reveal">
+    <div class="gallery-grid" data-anim="lote">
+      <div class="gallery-item big">
         <img src="img/pizza2.jpeg" alt="Recién salida del horno" loading="lazy">
         <div class="gallery-label">Recién salida del horno</div>
       </div>
-      <div class="gallery-item tall reveal">
+      <div class="gallery-item tall">
         <img src="img/pizza3.jpeg" alt="Nuestras pizzas" loading="lazy">
         <div class="gallery-label">Nuestras pizzas</div>
       </div>
-      <div class="gallery-item reveal">
+      <div class="gallery-item wide">
         <img src="img/calzones.jpeg" alt="Calzones" loading="lazy">
         <div class="gallery-label">Calzones</div>
       </div>
-      <div class="gallery-item reveal">
+      <div class="gallery-item tall">
         <img src="img/pizzaBirria.jpeg" alt="Pizza Birria" loading="lazy">
         <div class="gallery-label">Pizza Birria</div>
       </div>
-      <div class="gallery-item wide reveal">
+      <div class="gallery-item wide">
         <img src="img/milkshakes.jpeg" alt="Bebidas" loading="lazy" style="object-position:center bottom">
         <div class="gallery-label">Batidos y café</div>
       </div>
-      <div class="gallery-item tall reveal">
+      <div class="gallery-item tall">
         <img src="img/fresaConCrema.jpeg" alt="Fresa con Crema" loading="lazy">
         <div class="gallery-label">Fresa con Crema</div>
       </div>
-      <div class="gallery-item tall reveal">
+      <div class="gallery-item tall">
         <img src="img/choc.jpeg" alt="Batido con malvaviscos" loading="lazy">
         <div class="gallery-label">Batido con malvaviscos</div>
       </div>
-      <div class="gallery-item tall reveal">
+      <div class="gallery-item tall">
         <img src="img/chocolate.jpeg" alt="Batido con maní" loading="lazy">
         <div class="gallery-label">Batido con maní</div>
       </div>
-      <div class="gallery-item tall reveal">
+      <div class="gallery-item tall">
         <img src="img/copaFresas1.jpeg" alt="Fresas con crema y chocolate" loading="lazy">
         <div class="gallery-label">Fresas con crema y chocolate</div>
       </div>
-      <div class="gallery-item tall reveal">
+      <div class="gallery-item tall">
         <img src="img/mangonadaTajin1.jpeg" alt="Mangonada con tajín" loading="lazy">
         <div class="gallery-label">Mangonada con tajín</div>
       </div>
-      <div class="gallery-item tall reveal">
+      <div class="gallery-item tall">
         <img src="img/copaFresas3.jpeg" alt="Fresas con crema" loading="lazy">
         <div class="gallery-label">Fresas con crema</div>
       </div>
-      <div class="gallery-item tall reveal">
+      <div class="gallery-item tall">
         <img src="img/mangonadaTajin2.jpeg" alt="Mangonada" loading="lazy">
         <div class="gallery-label">Mangonada</div>
       </div>
-      <div class="gallery-item wide reveal">
+      <div class="gallery-item wide">
         <img src="img/granizado.jpeg" alt="Granizado" loading="lazy">
         <div class="gallery-label">Granizado</div>
       </div>
-      <div class="gallery-item wide reveal">
+      <div class="gallery-item wide">
         <img src="img/copaFresas2.jpeg" alt="Postres de la casa" loading="lazy">
         <div class="gallery-label">Postres de la casa</div>
       </div>
-      <div class="gallery-item wide reveal">
+      <div class="gallery-item tall">
         <img src="img/matcha.jpeg" alt="Matcha" loading="lazy">
         <div class="gallery-label">Matcha</div>
       </div>
@@ -1176,41 +1433,51 @@
   <!-- ===================== SUCURSALES ===================== -->
   <section id="sucursales">
     <div class="label">Encontranos</div>
-    <h2 class="sec-title">Nuestras Sucursales</h2>
-    <p class="sec-sub">Dos sucursales para estar cerca de vos. Abierto todos los días de 11am a 10pm.</p>
+    <h2 class="sec-title" data-anim="subir">Nuestras Sucursales</h2>
+    <p class="sec-sub" data-anim="subir">Dos sucursales para estar cerca de vos. Abierto todos los días de 11am a 10pm.</p>
 
-    <div class="sucursales-grid">
-      <div class="suc-card reveal">
+    <div class="sucursales-grid" data-anim="cascada">
+      <div class="suc-card">
         <div class="suc-header">
-          <div class="suc-name">📍 Cariari</div>
-          <div class="suc-hours">11:00 am — 10:00 pm</div>
+          <div class="suc-name"><svg class="ico"><use href="#i-pin"/></svg>Cariari</div>
+          <div class="suc-hours"><svg class="ico"><use href="#i-reloj"/></svg>11:00 am — 10:00 pm</div>
         </div>
         <div class="suc-body">
-          <div class="suc-phone">8575-6873</div>
+          <a class="suc-phone" href="tel:+50685756873"><svg class="ico"><use href="#i-telefono"/></svg>8575-6873</a>
           <div class="suc-btns">
-            <a href="https://wa.me/50685756873" target="_blank" class="btn-wa">💬 WhatsApp</a>
-            <a href="https://maps.google.com/?q=10.364815637050356,-83.73389040597718" target="_blank" class="btn-map">📍 Maps</a>
+            <a href="https://wa.me/50685756873" target="_blank" rel="noopener" class="btn-wa"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.031 0C5.4 0 .001 5.399.001 12.031c0 2.12.554 4.114 1.522 5.842L0 24l6.279-1.474a11.94 11.94 0 0 0 5.752 1.463h.005c6.63 0 12.029-5.399 12.029-12.031 0-3.213-1.252-6.233-3.526-8.508A11.955 11.955 0 0 0 12.031 0zm0 22.021h-.004a9.966 9.966 0 0 1-5.096-1.399l-.366-.217-3.782.995 1.014-3.686-.239-.379a9.965 9.965 0 0 1-1.533-5.304c0-5.514 4.487-10.001 10.005-10.001 2.671 0 5.181 1.041 7.072 2.933a9.937 9.937 0 0 1 2.929 7.075c0 5.517-4.487 10.001-10.005 10.001z"/></svg>WhatsApp</a>
+            <a href="https://maps.google.com/?q=10.364815637050356,-83.73389040597718" target="_blank" rel="noopener" class="btn-map"><svg class="ico"><use href="#i-mapa"/></svg>Cómo llegar</a>
           </div>
         </div>
         <div class="suc-map">
-          <iframe src="https://www.google.com/maps?q=10.364815637050356,-83.73389040597718&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Mapa Pizza Yaja Cariari"></iframe>
+          <button type="button" class="mapa-cargar" onclick="cargarMapa(this)"
+                  data-src="https://www.google.com/maps?q=10.364815637050356,-83.73389040597718&output=embed" data-titulo="Mapa Pizza Yaja Cariari">
+            <span class="mapa-pin"><svg class="ico"><use href="#i-pin"/></svg></span>
+            Ver mapa de Cariari
+            <small>Tocá para cargar el mapa</small>
+          </button>
         </div>
       </div>
 
-      <div class="suc-card reveal">
+      <div class="suc-card">
         <div class="suc-header">
-          <div class="suc-name">📍 Guápiles</div>
-          <div class="suc-hours">11:00 am — 10:00 pm</div>
+          <div class="suc-name"><svg class="ico"><use href="#i-pin"/></svg>Guápiles</div>
+          <div class="suc-hours"><svg class="ico"><use href="#i-reloj"/></svg>11:00 am — 10:00 pm</div>
         </div>
         <div class="suc-body">
-          <div class="suc-phone">8658-8311</div>
+          <a class="suc-phone" href="tel:+50686588311"><svg class="ico"><use href="#i-telefono"/></svg>8658-8311</a>
           <div class="suc-btns">
-            <a href="https://wa.me/50686588311" target="_blank" class="btn-wa">💬 WhatsApp</a>
-            <a href="https://maps.google.com/?q=10.21339030147672,-83.79144591252093" target="_blank" class="btn-map">📍 Maps</a>
+            <a href="https://wa.me/50686588311" target="_blank" rel="noopener" class="btn-wa"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.031 0C5.4 0 .001 5.399.001 12.031c0 2.12.554 4.114 1.522 5.842L0 24l6.279-1.474a11.94 11.94 0 0 0 5.752 1.463h.005c6.63 0 12.029-5.399 12.029-12.031 0-3.213-1.252-6.233-3.526-8.508A11.955 11.955 0 0 0 12.031 0zm0 22.021h-.004a9.966 9.966 0 0 1-5.096-1.399l-.366-.217-3.782.995 1.014-3.686-.239-.379a9.965 9.965 0 0 1-1.533-5.304c0-5.514 4.487-10.001 10.005-10.001 2.671 0 5.181 1.041 7.072 2.933a9.937 9.937 0 0 1 2.929 7.075c0 5.517-4.487 10.001-10.005 10.001z"/></svg>WhatsApp</a>
+            <a href="https://maps.google.com/?q=10.21339030147672,-83.79144591252093" target="_blank" rel="noopener" class="btn-map"><svg class="ico"><use href="#i-mapa"/></svg>Cómo llegar</a>
           </div>
         </div>
         <div class="suc-map">
-          <iframe src="https://www.google.com/maps?q=10.21339030147672,-83.79144591252093&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Mapa Pizza Yaja Guápiles"></iframe>
+          <button type="button" class="mapa-cargar" onclick="cargarMapa(this)"
+                  data-src="https://www.google.com/maps?q=10.21339030147672,-83.79144591252093&output=embed" data-titulo="Mapa Pizza Yaja Guápiles">
+            <span class="mapa-pin"><svg class="ico"><use href="#i-pin"/></svg></span>
+            Ver mapa de Guápiles
+            <small>Tocá para cargar el mapa</small>
+          </button>
         </div>
       </div>
     </div>
@@ -1218,7 +1485,7 @@
 
   <!-- ===================== FOOTER ===================== -->
   <footer>
-    <div class="footer-grid">
+    <div class="footer-grid" data-anim="cascada">
       <div class="footer-brand">
         <img src="img/Logo.jpeg" alt="Pizza Yaja" style="height:70px;width:auto;mix-blend-mode:screen;filter:brightness(1.05);margin-bottom:12px">
         <p>La mejor pizza artesanal de la zona, hecha con ingredientes frescos y el sabor que te va a encantar. Encontranos en Cariari y Guápiles.</p>
@@ -1259,20 +1526,29 @@
   </footer>
 
   <!-- ===================== BOTONES FLOTANTES ===================== -->
-  <a href="https://wa.me/50685756873" target="_blank" class="wa-fab" aria-label="Chatear por WhatsApp">
+  <a href="https://wa.me/50685756873" target="_blank" rel="noopener" class="wa-fab" aria-label="Chatear por WhatsApp">
     <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.031 0C5.4 0 .001 5.399.001 12.031c0 2.12.554 4.114 1.522 5.842L0 24l6.279-1.474a11.94 11.94 0 0 0 5.752 1.463h.005c6.63 0 12.029-5.399 12.029-12.031 0-3.213-1.252-6.233-3.526-8.508A11.955 11.955 0 0 0 12.031 0zm0 22.021h-.004a9.966 9.966 0 0 1-5.096-1.399l-.366-.217-3.782.995 1.014-3.686-.239-.379a9.965 9.965 0 0 1-1.533-5.304c0-5.514 4.487-10.001 10.005-10.001 2.671 0 5.181 1.041 7.072 2.933a9.937 9.937 0 0 1 2.929 7.075c0 5.517-4.487 10.001-10.005 10.001z"/></svg>
   </a>
 
   <button class="cart-fab" onclick="abrirCarrito()" aria-label="Ver carrito">
-    🛒
-    <span class="cart-fab-badge" id="cartBadge" style="display:none">0</span>
+    <span class="cart-fab-icono" data-anim="rebote"><svg class="ico"><use href="#i-bolsa"/></svg></span>
+    <span class="cart-fab-badge" id="cartBadge" style="display:none" data-anim="rebote">0</span>
   </button>
 
+  <!-- Barra fija de pedido (solo celular): reemplaza a los botones flotantes -->
+  <div class="barra-pedir" role="region" aria-label="Hacer pedido">
+    <button type="button" class="bp-pedir" onclick="abrirCarrito()">
+      <svg class="ico"><use href="#i-bolsa"/></svg><span id="barraTexto">Pedir ahora</span>
+      <span class="bp-cuenta" id="cartBadgeBar" style="display:none" data-anim="rebote">0</span>
+    </button>
+    <a href="https://wa.me/50685756873" target="_blank" rel="noopener" class="bp-wa" aria-label="Chatear por WhatsApp"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.031 0C5.4 0 .001 5.399.001 12.031c0 2.12.554 4.114 1.522 5.842L0 24l6.279-1.474a11.94 11.94 0 0 0 5.752 1.463h.005c6.63 0 12.029-5.399 12.029-12.031 0-3.213-1.252-6.233-3.526-8.508A11.955 11.955 0 0 0 12.031 0zm0 22.021h-.004a9.966 9.966 0 0 1-5.096-1.399l-.366-.217-3.782.995 1.014-3.686-.239-.379a9.965 9.965 0 0 1-1.533-5.304c0-5.514 4.487-10.001 10.005-10.001 2.671 0 5.181 1.041 7.072 2.933a9.937 9.937 0 0 1 2.929 7.075c0 5.517-4.487 10.001-10.005 10.001z"/></svg></a>
+  </div>
+
   <div class="cart-overlay" id="cartOverlay" onclick="cerrarCarrito()"></div>
-  <div class="cart-drawer" id="cartDrawer">
+  <div class="cart-drawer" id="cartDrawer" role="dialog" aria-modal="true" aria-labelledby="cartTitulo" data-lenis-prevent>
     <div class="cart-header">
-      <h3>🛒 Tu Pedido</h3>
-      <button class="cart-close" onclick="cerrarCarrito()">✕</button>
+      <h3 id="cartTitulo"><svg class="ico"><use href="#i-bolsa"/></svg>Tu pedido</h3>
+      <button class="cart-close" onclick="cerrarCarrito()" aria-label="Cerrar carrito"><svg class="ico"><use href="#i-cerrar"/></svg></button>
     </div>
 
     <!-- PASO 1: carrito -->
@@ -1292,21 +1568,21 @@
         <div class="cf-group">
           <label class="cf-label">Sucursal</label>
           <div class="cf-radios">
-            <div class="cf-radio cf-sede active" onclick="elegirSede('cariari', this)">📍 Cariari</div>
-            <div class="cf-radio cf-sede" onclick="elegirSede('guapiles', this)">📍 Guápiles</div>
+            <div class="cf-radio cf-sede active" role="button" tabindex="0" onclick="elegirSede('cariari', this)"><svg class="ico"><use href="#i-pin"/></svg>Cariari</div>
+            <div class="cf-radio cf-sede" role="button" tabindex="0" onclick="elegirSede('guapiles', this)"><svg class="ico"><use href="#i-pin"/></svg>Guápiles</div>
           </div>
         </div>
 
         <div class="cf-group">
           <label class="cf-label">Modalidad</label>
           <div class="cf-radios">
-            <div class="cf-radio cf-modalidad active" onclick="elegirModalidad('recoger', this)">🏪 Recoger</div>
-            <div class="cf-radio cf-modalidad" onclick="elegirModalidad('domicilio', this)">🛵 Domicilio</div>
+            <div class="cf-radio cf-modalidad active" role="button" tabindex="0" onclick="elegirModalidad('recoger', this)"><svg class="ico"><use href="#i-tienda"/></svg>Recoger</div>
+            <div class="cf-radio cf-modalidad" role="button" tabindex="0" onclick="elegirModalidad('domicilio', this)"><svg class="ico"><use href="#i-pin"/></svg>Domicilio</div>
           </div>
         </div>
 
         <div class="cf-group" id="direccionGroup" style="display:none">
-          <label class="cf-label">Dirección de entrega</label>
+          <label class="cf-label" for="cfDireccion">Dirección de entrega</label>
           <textarea class="cf-textarea" id="cfDireccion" placeholder="Ej. 200m sur de la escuela, casa portón negro"></textarea>
         </div>
 
@@ -1316,30 +1592,30 @@
         </div>
 
         <div class="cf-group">
-          <label class="cf-label">Nombre</label>
-          <input class="cf-input" id="cfNombre" placeholder="Tu nombre">
+          <label class="cf-label" for="cfNombre">Nombre</label>
+          <input class="cf-input" id="cfNombre" placeholder="Tu nombre" autocomplete="name">
         </div>
 
         <div class="cf-group">
-          <label class="cf-label">Teléfono</label>
-          <input class="cf-input" id="cfTelefono" type="tel" placeholder="8888-8888">
+          <label class="cf-label" for="cfTelefono">Teléfono</label>
+          <input class="cf-input" id="cfTelefono" type="tel" placeholder="8888-8888" autocomplete="tel">
         </div>
 
         <div class="cf-group">
-          <label class="cf-label">Observaciones (opcional)</label>
+          <label class="cf-label" for="cfNotas">Observaciones (opcional)</label>
           <textarea class="cf-textarea" id="cfNotas" placeholder="Alguna indicación especial para tu pedido"></textarea>
         </div>
       </div>
       <div class="cart-footer">
         <div class="cart-total"><span>Total</span><span id="cartTotal2">₡0</span></div>
-        <button class="cart-btn-primary" onclick="enviarPedidoWhatsApp()">Enviar pedido por WhatsApp 💬</button>
+        <button class="cart-btn-primary" onclick="enviarPedidoWhatsApp()">Enviar pedido por WhatsApp</button>
       </div>
     </div>
   </div>
 
   <!-- ===================== SELECTOR DE SABOR ===================== -->
-  <div class="sabor-modal-overlay" id="saborModalOverlay">
-    <div class="sabor-modal">
+  <div class="sabor-modal-overlay" id="saborModalOverlay" data-lenis-prevent>
+    <div class="sabor-modal" role="dialog" aria-modal="true" aria-labelledby="saborTitulo">
       <h4 id="saborTitulo">Producto</h4>
       <div class="sabor-precio" id="saborPrecio">₡0</div>
       <div id="saborSelectsContainer"></div>
@@ -1383,21 +1659,16 @@
         document.getElementById('panel-' + t).classList.remove('active');
       });
       document.querySelectorAll('.menu-tab').forEach(b => b.classList.remove('active'));
-      document.getElementById('panel-' + name).classList.add('active');
+      const panel = document.getElementById('panel-' + name);
+      panel.classList.add('active');
       if (btn) {
         btn.classList.add('active');
       } else {
         const idx = tabs.indexOf(name);
         if (idx >= 0) document.querySelectorAll('.menu-tab')[idx].classList.add('active');
       }
+      if (window.Animaciones) Animaciones.entrar(panel);
     }
-
-    // Scroll reveal
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('vis'); });
-    }, { threshold: 0.08 });
-
-    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
     /* ======================================================
        CARRITO DE PEDIDOS ONLINE
@@ -1491,6 +1762,7 @@
       }
       guardarCarrito();
       mostrarToast('Agregado: ' + nombre);
+      document.dispatchEvent(new CustomEvent('carrito:agregado')); // animaciones.js hace rebotar el carrito
     }
 
     function cambiarCantidad(idx, delta) {
@@ -1514,9 +1786,16 @@
       badge.textContent = totalItems;
       badge.style.display = totalItems > 0 ? 'flex' : 'none';
 
+      // Barra móvil: muestra cuántos productos y el total
+      const badgeBar = document.getElementById('cartBadgeBar');
+      badgeBar.textContent = totalItems;
+      badgeBar.style.display = totalItems > 0 ? 'grid' : 'none';
+      document.getElementById('barraTexto').textContent =
+        totalItems > 0 ? 'Ver pedido · ₡' + totalCarrito().toLocaleString('es-CR') : 'Pedir ahora';
+
       const body = document.getElementById('cartBody');
       if (carrito.length === 0) {
-        body.innerHTML = '<div class="cart-empty">🛒<br><br>Tu carrito está vacío.<br>¡Agregá algo rico del menú!</div>';
+        body.innerHTML = '<div class="cart-empty"><svg class="ico"><use href="#i-bolsa"/></svg><br>Tu carrito está vacío.<br>¡Agregá algo rico del menú!</div>';
       } else {
         body.innerHTML = carrito.map((item, idx) => `
           <div class="cart-item">
@@ -1768,6 +2047,35 @@
     }
     actualizarEstadoAbierto();
     renderCarrito();
+
+    // Mapas: el iframe de Google se crea recién cuando la persona lo pide
+    function cargarMapa(btn) {
+      const iframe = document.createElement('iframe');
+      iframe.src = btn.dataset.src;
+      iframe.title = btn.dataset.titulo;
+      iframe.loading = 'lazy';
+      iframe.referrerPolicy = 'no-referrer-when-downgrade';
+      btn.replaceWith(iframe);
+    }
+
+    // Teclado: Escape cierra modal/carrito/menú; Enter o Espacio activan los [role=button]
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        if (document.getElementById('saborModalOverlay').classList.contains('open')) cerrarSelectorSabor();
+        else if (document.getElementById('cartDrawer').classList.contains('open')) cerrarCarrito();
+        else if (mob.classList.contains('open')) closeMob();
+      }
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role="button"]')) {
+        e.preventDefault();
+        e.target.click();
+      }
+    });
   </script>
+
+  <!-- ===================== ANIMACIONES (versiones fijas, no usar @latest) ===================== -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js" defer></script>
+  <script src="js/animaciones.js" defer></script>
 </body>
 </html>

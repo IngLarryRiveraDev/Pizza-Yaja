@@ -1,0 +1,61 @@
+/* ==========================================================
+   ANIMACIONES — estilos de apoyo para js/animaciones.js
+   Reutilizable: no depende de los colores ni del diseño de la página.
+   ========================================================== */
+
+/* ---------- Lenis (scroll suave) — reglas oficiales de lenis@1.3.26 ---------- */
+html.lenis, html.lenis body { height: auto; }
+.lenis:not(.lenis-autoToggle).lenis-stopped { overflow: clip; }
+.lenis [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-smooth iframe { pointer-events: none; }
+
+/* ---------- Anti-parpadeo del héroe ----------
+   Un script en el <head> pone .js-anim en <html>. Mientras está, lo que
+   el héroe va a animar queda oculto para que no "salte" en el primer frame.
+   animaciones.js la quita al arrancar; si GSAP no carga, un respaldo
+   la quita a los 3 s y todo se ve normal. */
+.js-anim [data-anim-hero],
+.js-anim [data-anim="lineas"] .linea > span,
+.js-anim [data-anim="pizza-hero"] { visibility: hidden; }
+
+/* ---------- Títulos que suben línea por línea ----------
+   <h1 data-anim="lineas"><span class="linea"><span>Texto</span></span></h1>
+   El span de afuera es la máscara; el de adentro es el que sube. */
+[data-anim="lineas"] .linea {
+  display: block; overflow: hidden;
+  /* espacio extra para que no se corten tildes ni la "ñ" */
+  padding: .12em 0 .1em; margin: -.12em 0 -.1em;
+}
+[data-anim="lineas"] .linea > span { display: inline-block; }
+
+/* ---------- Cinta infinita ----------
+   <div data-anim="cinta"><div class="cinta-pista">
+     <div class="cinta-set">…</div><div class="cinta-set">…</div>  ← dos copias iguales
+   </div></div> */
+[data-anim="cinta"] { overflow: hidden; }
+[data-anim="cinta"] .cinta-pista { display: flex; width: max-content; will-change: transform; }
+[data-anim="cinta"] .cinta-set { display: flex; flex-shrink: 0; }
+
+/* ---------- Barra de progreso de lectura ---------- */
+[data-progreso] {
+  position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 2000;
+  transform: scaleX(0); transform-origin: left center; pointer-events: none;
+}
+
+/* ---------- Nav que se esconde al bajar y vuelve al subir ---------- */
+[data-nav-ocultar] { transition: transform .35s cubic-bezier(.22, 1, .36, 1); }
+[data-nav-ocultar].nav-oculta { transform: translateY(-100%); }
+
+/* ---------- Movimiento reducido ----------
+   Si la persona pidió menos movimiento en su sistema, se apaga todo lo
+   decorativo. El contenido se ve completo igual. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+  .js-anim [data-anim-hero],
+  .js-anim [data-anim="lineas"] .linea > span,
+  .js-anim [data-anim="pizza-hero"] { visibility: visible; }
+}

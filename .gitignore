@@ -13,3 +13,6 @@ manual_tecnico_inventario.html
 
 # Dumps de base de datos
 pizzeria.sql
+
+# Capturas y logs de Playwright (pruebas locales)
+.playwright-mcp/

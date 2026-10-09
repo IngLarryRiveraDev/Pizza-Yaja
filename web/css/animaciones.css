@@ -74,23 +74,34 @@ html.lenis, html.lenis body { height: auto; }
 [data-nav-ocultar] { transition: transform .35s cubic-bezier(.22, 1, .36, 1); }
 [data-nav-ocultar].nav-oculta { transform: translateY(-100%); }
 
-/* ---------- Movimiento reducido ----------
-   Si la persona pidió menos movimiento en su sistema (iPhone: "Reducir
-   movimiento"; Android: "Quitar animaciones"), nada se desplaza ni gira.
-   El héroe solo aparece con un fundido suave, que no causa mareo. */
+/* ---------- Modo suave (movimiento reducido) ----------
+   Si la persona pidió menos movimiento (iPhone: "Reducir movimiento";
+   Android: "Quitar animaciones" o el ahorro de batería), quitamos lo que
+   puede marear: giros, desplazamientos, parallax, la cinta que corre.
+   PERO no dejamos la página "muerta": las cosas aparecen con fundidos y
+   la pizza entra enfocándose. Los fundidos no causan mareo. */
 @media (prefers-reduced-motion: reduce) {
+  /* Apaga las animaciones CSS decorativas (giro del sello, pistas, etc.) */
   *, *::before, *::after {
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     animation-delay: 0s !important;
-    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
   }
-  [data-anim="lineas"] .linea > span,
-  [data-anim-hero],
-  [data-anim="pizza-hero"].lista .pizza-disco,
-  [data-anim="pizza-hero"].lista .pizza-halo,
-  [data-anim="pizza-hero"].lista .pizza-sello {
-    animation: solo-fundido .8s ease both !important;
-  }
+  /* Las transiciones cortas (hover, pestañas, carrito) se mantienen, más rápidas */
+  *, *::before, *::after { transition-duration: .2s !important; }
+
+  /* Héroe: fundidos escalonados */
+  [data-anim-hero="0"]                    { animation: solo-fundido .9s ease .05s both !important; }
+  [data-anim="lineas"] .linea:nth-child(1) > span { animation: solo-fundido 1s ease .15s both !important; }
+  [data-anim="lineas"] .linea:nth-child(2) > span { animation: solo-fundido 1s ease .35s both !important; }
+  [data-anim-hero="2"]                    { animation: solo-fundido .9s ease .55s both !important; }
+  [data-anim-hero="3"]                    { animation: solo-fundido .9s ease .7s both !important; }
+
+  /* La pizza "enfoca": de borrosa a nítida, sin moverse */
+  [data-anim="pizza-hero"].lista .pizza-disco { animation: enfoque 1.4s ease both !important; }
+  [data-anim="pizza-hero"].lista .pizza-halo  { animation: solo-fundido 1.6s ease .2s both !important; }
+  [data-anim="pizza-hero"].lista .pizza-sello { animation: solo-fundido .8s ease .9s both !important; }
 }
 @keyframes solo-fundido { from { opacity: 0; } }
+@keyframes enfoque { from { opacity: 0; filter: blur(16px); } 40% { opacity: 1; } }

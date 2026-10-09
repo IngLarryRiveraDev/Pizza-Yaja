@@ -28,17 +28,18 @@
 (function () {
   'use strict';
 
-  var reducir = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var apagado = { entrar: function () {} };
+  // Modo suave: la persona pidió menos movimiento en su teléfono. Nada se
+  // desplaza ni gira, pero las cosas siguen apareciendo con fundidos.
+  var suave = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  if (!window.gsap || !window.ScrollTrigger || reducir) { window.Animaciones = apagado; return; }
+  if (!window.gsap || !window.ScrollTrigger) { window.Animaciones = { entrar: function () {} }; return; }
 
   gsap.registerPlugin(ScrollTrigger);
   var $$ = function (sel, ctx) { return gsap.utils.toArray(sel, ctx); };
 
   /* ---------- 1. Scroll suave (Lenis) sincronizado con ScrollTrigger ---------- */
   var lenis = null;
-  if (window.Lenis) {
+  if (window.Lenis && !suave) {
     lenis = new Lenis({ autoRaf: false, anchors: true, stopInertiaOnNavigate: true });
     lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add(function (t) { lenis.raf(t * 1000); });
@@ -56,7 +57,9 @@
      al instante aunque GSAP tarde en llegar. Aquí solo va lo atado al scroll. */
 
   /* ---------- 3. Entradas al hacer scroll ---------- */
-  var entrada = { y: 40, autoAlpha: 0, duration: .9, ease: 'power3.out' };
+  var entrada = suave
+    ? { autoAlpha: 0, duration: 1, ease: 'power1.out' }
+    : { y: 40, autoAlpha: 0, duration: .9, ease: 'power3.out' };
 
   $$('[data-anim="subir"]').forEach(function (el) {
     gsap.from(el, Object.assign({}, entrada, { scrollTrigger: { trigger: el, start: 'top 88%', once: true } }));
@@ -64,7 +67,7 @@
 
   $$('[data-anim="cascada"]').forEach(function (grupo) {
     gsap.from(grupo.children, {
-      y: 30, autoAlpha: 0, duration: .7, ease: 'power3.out', stagger: .07,
+      y: suave ? 0 : 30, autoAlpha: 0, duration: .7, ease: 'power3.out', stagger: .07,
       scrollTrigger: { trigger: grupo, start: 'top 85%', once: true }
     });
   });
@@ -73,7 +76,7 @@
   // agrupando los que entran juntos para que salgan en cascada.
   $$('[data-anim="lote"]').forEach(function (grupo) {
     var hijos = gsap.utils.toArray(grupo.children);
-    gsap.set(hijos, { autoAlpha: 0, y: 50, scale: .96 });
+    gsap.set(hijos, suave ? { autoAlpha: 0 } : { autoAlpha: 0, y: 50, scale: .96 });
     ScrollTrigger.batch(hijos, {
       start: 'top 92%', once: true,
       onEnter: function (lote) {
@@ -84,7 +87,7 @@
 
   $$('[data-anim="zoom"]').forEach(function (marco) {
     var img = marco.querySelector('img');
-    if (!img) return;
+    if (!img || suave) return;
     gsap.from(img, {
       scale: 1.25, duration: 1.6, ease: 'power2.out',
       scrollTrigger: { trigger: marco, start: 'top 85%', once: true }
@@ -103,7 +106,16 @@
     });
   });
 
-  /* ---------- 4. Efectos atados al scroll ---------- */
+  // Barra de progreso de lectura (la mueve la persona con su dedo: no marea)
+  $$('[data-progreso]').forEach(function (barra) {
+    gsap.to(barra, { scaleX: 1, ease: 'none',
+      scrollTrigger: { start: 0, end: 'max', scrub: .3 } });
+  });
+
+  /* ---------- 4. Efectos con movimiento (se saltan en modo suave) ---------- */
+  if (!suave) efectosConMovimiento();
+
+  function efectosConMovimiento() {
   var mm = gsap.matchMedia();
 
   // La pizza del héroe gira mientras bajás (también en celular: es solo transform)
@@ -149,12 +161,6 @@
     });
   });
 
-  // Barra de progreso de lectura
-  $$('[data-progreso]').forEach(function (barra) {
-    gsap.to(barra, { scaleX: 1, ease: 'none',
-      scrollTrigger: { start: 0, end: 'max', scrub: .3 } });
-  });
-
   // Nav que se esconde al bajar y vuelve al subir
   $$('[data-nav-ocultar]').forEach(function (nav) {
     ScrollTrigger.create({
@@ -174,6 +180,8 @@
     });
   });
 
+  } // fin efectosConMovimiento
+
   /* ---------- 6. Mantener las posiciones al día ----------
      Si la página cambia de alto (pestañas del menú, imágenes que cargan),
      ScrollTrigger recalcula dónde empieza cada animación. */
@@ -190,7 +198,7 @@
       if (!contenedor) return;
       var grupo = contenedor.querySelector('[data-anim="cascada"]') || contenedor;
       gsap.fromTo(grupo.children,
-        { y: 20, autoAlpha: 0 },
+        suave ? { autoAlpha: 0 } : { y: 20, autoAlpha: 0 },
         { y: 0, autoAlpha: 1, duration: .5, ease: 'power2.out', stagger: .05, overwrite: true });
     }
   };

@@ -814,6 +814,7 @@
     @media (max-width: 768px) {
       .barra-pedir {
         position: fixed; left: 12px; right: 12px; z-index: 1200;
+        max-width: 520px; margin-inline: auto;   /* en tablet no se estira de lado a lado */
         bottom: calc(12px + env(safe-area-inset-bottom));
         display: flex; gap: 8px; padding: 8px;
         background: rgba(22,22,22,.88);
@@ -890,20 +891,19 @@
        RESPONSIVE
     ============================================ */
     @media (max-width: 900px) {
-      /* Celular: la pizza grande y saliéndose por la derecha (más dinámico
-         que centrada y chica). El héroe tiene overflow:hidden y la recorta. */
+      /* Celular: la pizza centrada y completa, grande pero sin cortarse */
       .hero { padding-top: 8px; padding-bottom: 56px; min-height: 0; }
       .hero-glow {
         background:
-          radial-gradient(circle at 78% 22%, rgba(255,107,0,.28) 0%, transparent 46%),
+          radial-gradient(circle at 50% 24%, rgba(255,107,0,.28) 0%, transparent 46%),
           radial-gradient(ellipse 80% 50% at 0% 100%, rgba(229,57,53,.08) 0%, transparent 60%);
       }
       .hero-grid { grid-template-columns: 1fr; gap: 0; }
       .hero-visual {
-        order: -1; justify-self: end;
-        width: min(78vw, 400px); margin-right: calc(-5vw - 16%); margin-bottom: 4px;
+        order: -1; justify-self: center;
+        width: min(72vw, 340px); margin: 12px 0 22px;
       }
-      .pizza-sello { top: 6%; left: 2%; }
+      .pizza-sello { top: 0; left: -6%; }
       .hero-content { max-width: none; }
       .hero-badge { margin-bottom: 18px; }
       .hero h1 { margin-bottom: 18px; }

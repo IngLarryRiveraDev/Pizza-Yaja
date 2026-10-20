@@ -34,9 +34,13 @@ try {
             periodo_desde    DATETIME NULL,
             periodo_hasta    DATETIME NULL,
             created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE KEY uk_usuario_fecha (usuario_id, fecha_cierre)
+            KEY idx_usuario_fecha (usuario_id, fecha_cierre)
         )
     ");
+    // Se permiten varios cierres por día: se cambia el índice único por uno normal
+    // (primero se crea el normal por si una llave foránea necesita índice en usuario_id)
+    try { $conn->exec("ALTER TABLE arqueos ADD INDEX idx_usuario_fecha (usuario_id, fecha_cierre)"); } catch(PDOException $e) {}
+    try { $conn->exec("ALTER TABLE arqueos DROP INDEX uk_usuario_fecha"); } catch(PDOException $e) {}
     try { $conn->exec("ALTER TABLE arqueos ADD COLUMN periodo_desde DATETIME NULL"); } catch(PDOException $e) {}
     try { $conn->exec("ALTER TABLE arqueos ADD COLUMN periodo_hasta DATETIME NULL"); } catch(PDOException $e) {}
     foreach(['efectivo','sinpe','tarjeta'] as $m) {
@@ -80,17 +84,11 @@ try {
 
 $puede_cerrar = empty($ordenes_abiertas) && empty($anulaciones_pendientes);
 
-// Verificar si ya envió arqueo hoy
-try {
-    $chk = $conn->prepare("SELECT id FROM arqueos WHERE usuario_id = ? AND fecha_cierre = ?");
-    $chk->execute([$usuario_id, $fecha_hoy]);
-    if($chk->fetch()) {
-        $error = 'ya_enviado';
-    }
-} catch(PDOException $e) {}
+// Viene de un envío exitoso (ver redirect abajo)
+if(isset($_GET['enviado'])) $enviado = true;
 
 // Procesar envío
-if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'enviar' && !$error && $puede_cerrar) {
+if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'enviar' && $puede_cerrar) {
     $fisico_efectivo = (float)str_replace(',', '.', $_POST['efectivo'] ?? 0);
     $fisico_sinpe    = (float)str_replace(',', '.', $_POST['sinpe']    ?? 0);
     $fisico_tarjeta  = (float)str_replace(',', '.', $_POST['tarjeta']  ?? 0);
@@ -153,14 +151,11 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'enviar
             $periodo_desde, $periodo_hasta
         ]);
 
-        // El permiso se consume: no sirve para un segundo cierre
-        $enviado = true;
+        // Redirigir tras guardar: si recargan la página no se envía el cierre dos veces
+        header('Location: arqueo_caja.php?enviado=1');
+        exit;
     } catch(PDOException $e) {
-        if($e->getCode() == 23000) {
-            $error = 'ya_enviado';
-        } else {
-            $error = 'Error al guardar: ' . $e->getMessage();
-        }
+        $error = 'Error al guardar: ' . $e->getMessage();
     }
 }
 
@@ -258,12 +253,12 @@ $suc_nombre = ['cariari'=>'Cariari','guapiles'=>'Guapiles'][$sucursal] ?? ucfirs
             <a href="logout.php" class="btn-salir">Cerrar sesión</a>
         </div>
 
-    <?php elseif($error === 'ya_enviado'): ?>
-        <div class="alerta">
+    <?php elseif($error): ?>
+        <div class="alerta" style="border-color:#e53935">
             <div class="icon">⚠️</div>
-            <p><strong>Ya enviaste el cierre de hoy.</strong><br>Si hay un error, contactá a la administración.</p>
+            <p><strong>No se pudo guardar el cierre.</strong><br><?= htmlspecialchars($error) ?></p>
         </div>
-        <a href="ordenes_activas.php" class="btn-volver">← Volver</a>
+        <a href="arqueo_caja.php" class="btn-volver">← Intentar de nuevo</a>
 
     <?php elseif(!$puede_cerrar): ?>
         <div class="alerta" style="border-color:#e53935">

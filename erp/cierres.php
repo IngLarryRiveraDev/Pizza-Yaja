@@ -23,7 +23,7 @@ $conn->exec("
         periodo_desde    DATETIME NULL,
         periodo_hasta    DATETIME NULL,
         created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY uk_usuario_fecha (usuario_id, fecha_cierre)
+        KEY idx_usuario_fecha (usuario_id, fecha_cierre)
     )
 ");
 try { $conn->exec("ALTER TABLE arqueos ADD COLUMN periodo_desde DATETIME NULL"); } catch(PDOException $e) {}

@@ -10,9 +10,11 @@ if(!isset($_SESSION['usuario_id']) || $_SESSION['rol'] != 'camarero') {
 
 // ConexiÃ³n a la base de datos
 require_once 'config.php';
+require_once 'migrations.php';
 
 try {
     $conn = getConnection();
+    setupSushi($conn);
 
     // Los batidos (7 y 8) no salen acá: se piden desde Cafetería
     $stmt = $conn->query("SELECT * FROM categorias WHERE id NOT IN (7, 8) ORDER BY orden ASC");

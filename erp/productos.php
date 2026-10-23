@@ -4,7 +4,9 @@ if(!isset($_SESSION['usuario_id']) || $_SESSION['rol'] != 'admin') {
     header('Location: ../index.php'); exit;
 }
 require_once '../config.php';
+require_once '../migrations.php';
 $conn = getConnection();
+setupSushi($conn);
 
 function setupRecetasTable($conn) {
     $conn->exec("
@@ -201,7 +203,8 @@ try {
         </select>
         <input type="hidden" id="pCatNombre">
         <p style="font-size:12px;color:#888;margin-top:5px;line-height:1.5">
-          Los combos y las promociones se crean en <a href="combos.php" style="color:var(--orange);font-weight:600">Combos y Promos</a>.<br>
+          Los combos y las promociones de pizza se crean en <a href="combos.php" style="color:var(--orange);font-weight:600">Combos y Promos</a>.<br>
+          Las promos de <strong>Sushi</strong> se crean acá: elegí la categoría Sushi.<br>
           En <strong>Pizza 2x1</strong> y <strong>Pizza Individual</strong> lo que agregues son <strong>sabores</strong>, no botones del menú.
         </p>
       </div>

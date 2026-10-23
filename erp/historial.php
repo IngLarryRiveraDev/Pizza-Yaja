@@ -113,21 +113,83 @@ $vendQ->execute($paramsBase);
 $vendidos = $vendQ->fetchAll();
 $vendUnidades = array_sum(array_column($vendidos, 'qty'));
 
-// Calzones del día: los vendidos sueltos ('Calzone ...') y los que vienen
-// dentro de un combo, que en la descripción quedan como 'Calzone: sabor'
-$calzQ = $conn->prepare("
-  SELECT
-    COALESCE(SUM(CASE WHEN d.producto_nombre LIKE 'Calzone%' THEN d.cantidad ELSE 0 END), 0) AS sueltos,
-    COALESCE(SUM(CASE WHEN d.producto_nombre LIKE '%Calzone%'
-                       AND d.producto_nombre NOT LIKE 'Calzone%' THEN d.cantidad ELSE 0 END), 0) AS en_combos
-  FROM detalle_orden d JOIN ordenes o ON d.orden_id = o.id
-  WHERE {$whereBase}
-");
-$calzQ->execute($paramsBase);
-$calz = $calzQ->fetch();
-$calzSueltos = (int)($calz['sueltos'] ?? 0);
-$calzCombos  = (int)($calz['en_combos'] ?? 0);
-$calzTotal   = $calzSueltos + $calzCombos;
+// Calzones: los vendidos sueltos ('Calzone ...') y los que vienen dentro de
+// un combo, que en la descripción quedan como 'Calzone: sabor'
+function contarCalzones($conn, $where, $params) {
+    $q = $conn->prepare("
+      SELECT
+        COALESCE(SUM(CASE WHEN d.producto_nombre LIKE 'Calzone%' THEN d.cantidad ELSE 0 END), 0) AS sueltos,
+        COALESCE(SUM(CASE WHEN d.producto_nombre LIKE '%Calzone%'
+                           AND d.producto_nombre NOT LIKE 'Calzone%' THEN d.cantidad ELSE 0 END), 0) AS en_combos
+      FROM detalle_orden d JOIN ordenes o ON d.orden_id = o.id
+      WHERE {$where}
+    ");
+    $q->execute($params);
+    $r = $q->fetch();
+    return [(int)($r['sueltos'] ?? 0), (int)($r['en_combos'] ?? 0)];
+}
+
+[$calzSueltos, $calzCombos] = contarCalzones($conn, $whereBase, $paramsBase);
+$calzTotal = $calzSueltos + $calzCombos;
+
+// Calzones por turno. Los turnos salen de los cierres de caja: cada cierre
+// guarda desde y hasta cuándo fue su turno. Las órdenes se cuentan por la hora
+// en que se crearon (para cerrar hay que dejar todo resuelto, así que una orden
+// siempre cae en el turno donde se creó). Cada sucursal tiene sus propios turnos.
+$calzTurnos = [];
+try {
+    $inicioDia = $fecha . ' 00:00:00';
+    $finDia    = date('Y-m-d 00:00:00', strtotime($fecha . ' +1 day'));
+    $ahora     = date('Y-m-d H:i:s');
+    $sucsTurno = $suc_filtro === 'ambas' ? array_keys($sucLabels) : [$suc_filtro];
+
+    $cierresQ = $conn->prepare("
+        SELECT a.periodo_desde, a.periodo_hasta, u.nombre
+        FROM arqueos a LEFT JOIN usuarios u ON u.id = a.usuario_id
+        WHERE a.sucursal = ? AND a.periodo_desde IS NOT NULL AND a.periodo_hasta IS NOT NULL
+          AND a.periodo_hasta > ? AND a.periodo_desde < ?
+        ORDER BY a.periodo_hasta
+    ");
+    // Hasta dónde llegan los cierres que empezaron antes de que termine el día
+    // (incluye un turno que cerró pasada la medianoche)
+    $ultimoQ = $conn->prepare("SELECT MAX(periodo_hasta) FROM arqueos WHERE sucursal = ? AND periodo_desde < ?");
+
+    foreach($sucsTurno as $s) {
+        $segs = [];
+        $cierresQ->execute([$s, $inicioDia, $finDia]);
+        foreach($cierresQ->fetchAll() as $c) {
+            $segs[] = [
+                'desde'  => max($c['periodo_desde'], $inicioDia),
+                'hasta'  => min($c['periodo_hasta'], $finDia),
+                'quien'  => $c['nombre'] ?: '—',
+                'estado' => 'cerrado',
+            ];
+        }
+
+        // Lo que queda después del último cierre: el turno en curso (si es hoy)
+        // o un turno que nunca se cerró (días pasados)
+        $ultimoQ->execute([$s, $finDia]);
+        $desdeResto = max($ultimoQ->fetchColumn() ?: $inicioDia, $inicioDia); // si el último cierre pasó la medianoche, no queda resto
+        $hastaResto = $esHoy ? $ahora : $finDia;
+        if($desdeResto < $hastaResto) {
+            $segs[] = ['desde' => $desdeResto, 'hasta' => $hastaResto, 'quien' => '', 'estado' => $esHoy ? 'en_curso' : 'sin_cierre'];
+        }
+
+        foreach($segs as $i => $seg) {
+            // El inicio del día se incluye (> 1 segundo antes); los cierres usan "> desde AND <= hasta"
+            $desdeSQL = $seg['desde'] === $inicioDia ? date('Y-m-d H:i:s', strtotime($inicioDia) - 1) : $seg['desde'];
+            [$su, $co] = contarCalzones($conn,
+                "o.estado = 'completado' AND o.sucursal = ? AND o.fecha_creacion > ? AND o.fecha_creacion <= ?",
+                [$s, $desdeSQL, $seg['hasta']]);
+            $calzTurnos[] = $seg + ['sucursal' => $s, 'num' => $i + 1, 'total' => $su + $co, 'unico' => count($segs) === 1];
+        }
+    }
+} catch(PDOException $e) {
+    $calzTurnos = []; // si no existe la tabla de cierres, queda solo el total del día
+}
+// Solo vale la pena desglosar si el día tuvo más de un turno en alguna sucursal
+$turnosPorSuc = array_count_values(array_column($calzTurnos, 'sucursal'));
+$mostrarTurnos = !empty($turnosPorSuc) && max($turnosPorSuc) > 1;
 
 // ── Eliminadas del día
 $eWhere  = ["DATE(fecha) = ?"];
@@ -305,6 +367,36 @@ function urlHist($cambios) {
           <?php if($busq !== ''): ?><a class="eb gry" style="padding:6px 10px" href="<?= urlHist(['q'=>'']) ?>">✕</a><?php endif; ?>
         </form>
       </div>
+      <?php if($mostrarTurnos): ?>
+      <!-- Calzones por turno (cada turno va de un cierre de caja al siguiente) -->
+      <div style="display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);background:#fffaf3">
+        <span style="font-size:12px;color:#8d6e63;font-weight:700;align-self:center">🥟 Por turno:</span>
+        <?php foreach($calzTurnos as $t):
+          $prefijo = $suc_filtro === 'ambas' ? $sucLabels[$t['sucursal']] . ' · ' : '';
+          if($t['unico']) {
+              // Sucursal con un solo turno ese día (solo pasa viendo "Ambas"): es el día completo
+              $etiqueta = $prefijo . 'todo el día';
+              $horas = '';
+              $detalle = '';
+          } else {
+              $etiqueta = $prefijo . 'Turno ' . $t['num'];
+              // Un turno recortado a la medianoche termina a las 24:00, no a las 00:00
+              $fin = $t['estado'] === 'en_curso' ? 'ahora'
+                   : ($t['hasta'] === $finDia ? '24:00' : date('H:i', strtotime($t['hasta'])));
+              $horas = date('H:i', strtotime($t['desde'])) . '–' . $fin;
+              $detalle = $t['estado'] === 'cerrado' ? 'cerró ' . htmlspecialchars($t['quien'])
+                       : ($t['estado'] === 'en_curso' ? 'en curso' : 'sin cierre');
+          }
+          $color = $t['estado'] === 'en_curso' ? '#2e7d32' : ($t['estado'] === 'sin_cierre' ? '#c62828' : '#8d6e63');
+        ?>
+          <span style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #ffcc80;border-radius:8px;padding:5px 10px;font-size:12px">
+            <strong style="color:#e65100;font-size:14px"><?= $t['total'] ?></strong>
+            <span style="color:#555"><?= $etiqueta ?> <span style="color:#999"><?= $horas ?></span></span>
+            <span style="color:<?= $color ?>"><?= $detalle ?></span>
+          </span>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
       <div class="ec-body np">
         <table class="et">
           <thead>

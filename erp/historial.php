@@ -246,6 +246,7 @@ function urlHist($cambios) {
           <input type="hidden" name="tab" value="<?= $tab ?>">
           <input class="ef" type="date" name="fecha" value="<?= $fecha ?>" max="<?= $hoy ?>" style="width:160px" onchange="this.form.submit()">
           <?php if(!$esHoy): ?><a class="eb ora" href="<?= urlHist(['fecha'=>$hoy, 'q'=>'']) ?>">Ir a hoy</a><?php endif; ?>
+          <button type="button" class="eb grn" onclick="abrirExport()">📥 Exportar a Excel</button>
         </form>
       </div>
     </div>
@@ -449,8 +450,267 @@ function urlHist($cambios) {
   </div>
 </div>
 
+<!-- Modal exportar a Excel -->
+<div id="xModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;width:92%;max-width:440px">
+    <div style="padding:16px 20px;border-bottom:1px solid #eee;font-weight:700;font-size:15px;display:flex;justify-content:space-between">
+      <span>📥 Exportar historial a Excel</span>
+      <button onclick="cerrarExport()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">×</button>
+    </div>
+    <div style="padding:20px">
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <button type="button" id="xSem" class="eb ora" style="flex:1" onclick="xVista('semana')">Una semana</button>
+        <button type="button" id="xMes" class="eb gry" style="flex:1" onclick="xVista('mes')">Un mes</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;background:#f7f7f7;border-radius:10px;padding:10px">
+        <button type="button" class="eb gry" style="padding:6px 12px" onclick="xMover(-1)">←</button>
+        <strong id="xTitulo" style="text-align:center;font-size:14px"></strong>
+        <button type="button" class="eb gry" id="xSig" style="padding:6px 12px" onclick="xMover(1)">→</button>
+      </div>
+      <p style="font-size:12px;color:#888;margin:12px 0 0;line-height:1.6">
+        Incluye resumen por día, todas las órdenes con sus productos, lo vendido y las órdenes eliminadas,
+        <strong>separado por semana (lunes a domingo)</strong>.
+        Sucursal: <strong><?= $suc_filtro === 'ambas' ? 'ambas' : $sucLabels[$suc_filtro] ?></strong>.
+      </p>
+      <div id="xEstado" style="font-size:13px;margin-top:10px;min-height:18px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button type="button" class="eb gry" onclick="cerrarExport()">Cancelar</button>
+        <button type="button" class="eb grn" id="xBtn" onclick="exportarExcel()">Descargar Excel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ══════════════ Exportar a Excel ══════════════
+// Las fechas se manejan como texto 'AAAA-MM-DD' y en UTC para que la zona horaria no corra los días.
+const HOY_ISO = '<?= $hoy ?>';
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const DIAS_C = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const iso  = d => d.toISOString().slice(0, 10);
+const aUTC = s => new Date(s + 'T00:00:00Z');
+const sumarDias = (s, n) => { const d = aUTC(s); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
+const lunesDe = s => { const d = aUTC(s); return sumarDias(s, -((d.getUTCDay() + 6) % 7)); };
+const fCorta = s => { const d = aUTC(s); return d.getUTCDate() + ' ' + MESES[d.getUTCMonth()].slice(0, 3); };
+const fLarga = s => s.split('-').reverse().join('/');
+
+let xEst = { vista: 'semana', ref: '<?= $fecha ?>' };
+
+function xRango() {
+  if (xEst.vista === 'semana') {
+    const l = lunesDe(xEst.ref);
+    return { desde: l, hasta: sumarDias(l, 7),
+             titulo: 'Semana del Lun ' + fCorta(l) + ' al Dom ' + fCorta(sumarDias(l, 6)),
+             archivo: 'semana ' + fCorta(l) + ' al ' + fCorta(sumarDias(l, 6)) + ' ' + l.slice(0, 4) };
+  }
+  const d = aUTC(xEst.ref);
+  const desde = iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)));
+  const hasta = iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)));
+  const nombre = MESES[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+  return { desde, hasta, titulo: nombre.charAt(0).toUpperCase() + nombre.slice(1), archivo: nombre };
+}
+function xPintar() {
+  const r = xRango();
+  document.getElementById('xTitulo').textContent = r.titulo;
+  document.getElementById('xSem').className = 'eb ' + (xEst.vista === 'semana' ? 'ora' : 'gry');
+  document.getElementById('xMes').className = 'eb ' + (xEst.vista === 'mes' ? 'ora' : 'gry');
+  const sig = document.getElementById('xSig');
+  const hayFuturo = r.hasta > HOY_ISO;
+  sig.disabled = hayFuturo; sig.style.opacity = hayFuturo ? .35 : 1;
+  document.getElementById('xEstado').textContent = '';
+}
+function xVista(v) { xEst.vista = v; xPintar(); }
+function xMover(n) {
+  const r = xRango();
+  if (xEst.vista === 'semana') xEst.ref = sumarDias(r.desde, 7 * n);
+  else { const d = aUTC(r.desde); xEst.ref = iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1))); }
+  if (xEst.ref > HOY_ISO) xEst.ref = HOY_ISO;
+  xPintar();
+}
+function abrirExport() { xEst = { vista: 'semana', ref: '<?= $fecha ?>' }; xPintar(); document.getElementById('xModal').style.display = 'flex'; }
+function cerrarExport() { document.getElementById('xModal').style.display = 'none'; }
+
+function cargarExcelJS() {
+  if (window.ExcelJS) return Promise.resolve();
+  return new Promise((ok, mal) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+    s.onload = ok;
+    s.onerror = () => mal(new Error('No se pudo cargar la herramienta de Excel. Revisá la conexión a internet.'));
+    document.head.appendChild(s);
+  });
+}
+
+async function exportarExcel() {
+  const r = xRango();
+  const btn = document.getElementById('xBtn'), est = document.getElementById('xEstado');
+  btn.disabled = true; est.style.color = '#888'; est.textContent = 'Preparando el archivo…';
+  try {
+    const [datos] = await Promise.all([
+      fetch('historial_export.php?desde=' + r.desde + '&hasta=' + r.hasta).then(x => x.json()),
+      cargarExcelJS(),
+    ]);
+    if (!datos.success) throw new Error(datos.error || 'No se pudieron leer los datos');
+    const libro = armarLibro(datos, r);
+    const buf = await libro.xlsx.writeBuffer();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    a.download = 'Historial Pizza Yaja - ' + r.archivo + (datos.variasSuc ? '' : ' - ' + datos.sucursal) + '.xlsx';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    est.style.color = '#2e7d32';
+    est.textContent = '✅ Listo: ' + datos.ordenes.length + ' órdenes exportadas.';
+  } catch (e) {
+    est.style.color = '#c62828'; est.textContent = '⚠️ ' + e.message;
+  } finally { btn.disabled = false; }
+}
+
+function armarLibro(D, R) {
+  const NARANJA = 'FFFF6B00', OSCURO = 'FF2B2B2B', SEMANA = 'FFFFE0B2', SUBTOTAL = 'FFFFF3E0', BORDE = 'FFE0E0E0';
+  const DINERO = '"₡"#,##0';
+  const relleno = c => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: c } });
+  const borde = { top: { style: 'thin', color: { argb: BORDE } }, bottom: { style: 'thin', color: { argb: BORDE } } };
+  const fechaExcel = s => aUTC(s);
+  const libro = new ExcelJS.Workbook();
+  libro.creator = 'Pizza Yaja ERP'; libro.created = new Date();
+
+  // Agrupar órdenes y eliminadas por semana (lunes)
+  const porSemana = (lista) => { const m = {}; lista.forEach(x => (m[lunesDe(x.fecha)] ??= []).push(x)); return m; };
+  const ordSem = porSemana(D.ordenes), eliSem = porSemana(D.eliminadas);
+
+  // Encabezado común de cada hoja: título, período y columnas
+  function hoja(nombre, columnas) {
+    const h = libro.addWorksheet(nombre, { views: [{ state: 'frozen', ySplit: 5 }] });
+    h.columns = columnas.map(c => ({ key: c.k, width: c.w }));
+    const n = columnas.length;
+    h.mergeCells(1, 1, 1, n); h.mergeCells(2, 1, 2, n); h.mergeCells(3, 1, 3, n);
+    h.getCell(1, 1).value = 'Pizza Yaja — ' + nombre;
+    h.getCell(1, 1).font = { bold: true, size: 16, color: { argb: NARANJA } };
+    h.getCell(2, 1).value = 'Del ' + fLarga(D.desde) + ' al ' + fLarga(D.hasta) + '   ·   ' + D.sucursal;
+    h.getCell(2, 1).font = { bold: true, size: 11 };
+    h.getCell(3, 1).value = 'Generado el ' + D.generado;
+    h.getCell(3, 1).font = { italic: true, size: 9, color: { argb: 'FF888888' } };
+    const enc = h.getRow(5);
+    columnas.forEach((c, i) => {
+      const cel = enc.getCell(i + 1);
+      cel.value = c.t; cel.font = { bold: true, color: { argb: 'FFFFFFFF' } }; cel.fill = relleno(OSCURO);
+      cel.alignment = { vertical: 'middle', horizontal: c.dinero || c.num ? 'right' : 'left' };
+    });
+    enc.height = 22;
+    h._cols = columnas;
+    return h;
+  }
+  function filaSemana(h, texto) {
+    const f = h.addRow([]); const n = h._cols.length;
+    h.mergeCells(f.number, 1, f.number, n);
+    f.getCell(1).value = '📅 ' + texto;
+    f.getCell(1).font = { bold: true, size: 12, color: { argb: 'FF8D4A00' } };
+    f.getCell(1).fill = relleno(SEMANA); f.height = 20;
+  }
+  function filaDatos(h, obj, estilo) {
+    const f = h.addRow(obj);
+    h._cols.forEach((c, i) => {
+      const cel = f.getCell(i + 1);
+      if (c.dinero) cel.numFmt = DINERO;
+      if (c.fecha && cel.value) cel.numFmt = 'dd/mm/yyyy';
+      if (c.wrap) cel.alignment = { wrapText: true, vertical: 'top' };
+      else cel.alignment = { vertical: 'top', horizontal: c.dinero || c.num ? 'right' : 'left' };
+      cel.border = borde;
+      if (estilo === 'sub') { cel.font = { bold: true }; cel.fill = relleno(SUBTOTAL); }
+      if (estilo === 'total') { cel.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 }; cel.fill = relleno(NARANJA); }
+    });
+    return f;
+  }
+  const sumar = (lista, k) => lista.reduce((s, x) => s + (x[k] || 0), 0);
+
+  // ── Hoja 1: Resumen por día ──
+  const h1 = hoja('Resumen', [
+    { k: 'dia', t: 'Día', w: 8 }, { k: 'fecha', t: 'Fecha', w: 12, fecha: true }, { k: 'ordenes', t: 'Órdenes', w: 10, num: true },
+    { k: 'efectivo', t: 'Efectivo', w: 14, dinero: true }, { k: 'sinpe', t: 'SINPE', w: 14, dinero: true },
+    { k: 'tarjeta', t: 'Tarjeta', w: 14, dinero: true }, { k: 'total', t: 'Total vendido', w: 16, dinero: true },
+    { k: 'calzones', t: 'Calzones', w: 10, num: true },
+  ]);
+  const gran = { ordenes: 0, efectivo: 0, sinpe: 0, tarjeta: 0, total: 0, calzones: 0 };
+  D.semanas.forEach(s => {
+    filaSemana(h1, s.titulo);
+    const sub = { ordenes: 0, efectivo: 0, sinpe: 0, tarjeta: 0, total: 0, calzones: 0 };
+    s.dias.forEach(d => {
+      const os = D.ordenes.filter(o => o.fecha === d.fecha);
+      const fila = { dia: d.dia, fecha: fechaExcel(d.fecha), ordenes: os.length,
+        efectivo: sumar(os, 'efectivo'), sinpe: sumar(os, 'sinpe'), tarjeta: sumar(os, 'tarjeta'),
+        total: sumar(os, 'total'), calzones: d.calzones };
+      filaDatos(h1, fila);
+      Object.keys(sub).forEach(k => sub[k] += fila[k]);
+    });
+    filaDatos(h1, { dia: 'Total semana', ...sub }, 'sub');
+    Object.keys(gran).forEach(k => gran[k] += sub[k]);
+    h1.addRow([]);
+  });
+  filaDatos(h1, { dia: 'TOTAL', ...gran }, 'total');
+
+  // ── Hoja 2: Órdenes ──
+  const colsOrd = [
+    { k: 'fecha', t: 'Fecha', w: 12, fecha: true }, { k: 'hora', t: 'Hora', w: 7 }, { k: 'numero', t: '# Orden', w: 9, num: true },
+    { k: 'cliente', t: 'Cliente / Mesa', w: 24 },
+  ];
+  if (D.variasSuc) colsOrd.push({ k: 'sucursal', t: 'Sucursal', w: 11 });
+  colsOrd.push({ k: 'efectivo', t: 'Efectivo', w: 13, dinero: true }, { k: 'sinpe', t: 'SINPE', w: 13, dinero: true },
+               { k: 'tarjeta', t: 'Tarjeta', w: 13, dinero: true }, { k: 'total', t: 'Total', w: 13, dinero: true },
+               { k: 'productos', t: 'Productos', w: 70, wrap: true });
+  const h2 = hoja('Órdenes', colsOrd);
+  D.semanas.forEach(s => {
+    const os = ordSem[s.lunes] || [];
+    filaSemana(h2, s.titulo + '   (' + os.length + (os.length === 1 ? ' orden)' : ' órdenes)'));
+    os.forEach(o => filaDatos(h2, { ...o, fecha: fechaExcel(o.fecha) }));
+    filaDatos(h2, { cliente: 'Total semana', efectivo: sumar(os, 'efectivo'), sinpe: sumar(os, 'sinpe'),
+                    tarjeta: sumar(os, 'tarjeta'), total: sumar(os, 'total') }, 'sub');
+    h2.addRow([]);
+  });
+  filaDatos(h2, { cliente: 'TOTAL', efectivo: gran.efectivo, sinpe: gran.sinpe, tarjeta: gran.tarjeta, total: gran.total }, 'total');
+
+  // ── Hoja 3: Productos vendidos ──
+  const h3 = hoja('Productos', [
+    { k: 'nombre', t: 'Producto', w: 46 }, { k: 'cantidad', t: 'Cantidad', w: 11, num: true }, { k: 'total', t: 'Total', w: 15, dinero: true },
+  ]);
+  const todo = {};
+  D.semanas.forEach(s => {
+    filaSemana(h3, s.titulo);
+    s.productos.forEach(p => {
+      filaDatos(h3, p);
+      todo[p.nombre] ??= { nombre: p.nombre, cantidad: 0, total: 0 };
+      todo[p.nombre].cantidad += p.cantidad; todo[p.nombre].total += p.total;
+    });
+    if (!s.productos.length) filaDatos(h3, { nombre: 'Sin ventas esta semana' });
+    filaDatos(h3, { nombre: 'Total semana', cantidad: sumar(s.productos, 'cantidad'), total: sumar(s.productos, 'total') }, 'sub');
+    h3.addRow([]);
+  });
+  if (D.semanas.length > 1) {
+    filaSemana(h3, 'Todo el período');
+    const lista = Object.values(todo).sort((a, b) => b.cantidad - a.cantidad || a.nombre.localeCompare(b.nombre));
+    lista.forEach(p => filaDatos(h3, p));
+    filaDatos(h3, { nombre: 'TOTAL', cantidad: sumar(lista, 'cantidad'), total: sumar(lista, 'total') }, 'total');
+  }
+
+  // ── Hoja 4: Eliminadas ──
+  const colsEli = [
+    { k: 'fecha', t: 'Fecha', w: 12, fecha: true }, { k: 'hora', t: 'Hora', w: 7 }, { k: 'numero', t: '# Orden', w: 9, num: true },
+    { k: 'cliente', t: 'Cliente / Mesa', w: 24 },
+  ];
+  if (D.variasSuc) colsEli.push({ k: 'sucursal', t: 'Sucursal', w: 11 });
+  colsEli.push({ k: 'total', t: 'Total', w: 13, dinero: true }, { k: 'motivo', t: 'Motivo', w: 44, wrap: true }, { k: 'por', t: 'Eliminada por', w: 18 });
+  const h4 = hoja('Eliminadas', colsEli);
+  D.semanas.forEach(s => {
+    const es = eliSem[s.lunes] || [];
+    filaSemana(h4, s.titulo + '   (' + es.length + (es.length === 1 ? ' eliminada)' : ' eliminadas)'));
+    if (!es.length) filaDatos(h4, { cliente: 'No hubo órdenes eliminadas' });
+    es.forEach(e => filaDatos(h4, { ...e, fecha: fechaExcel(e.fecha) }));
+    h4.addRow([]);
+  });
+
+  return libro;
+}
 
 function verDetalle(id) {
   document.getElementById('mModal').style.display = 'flex';

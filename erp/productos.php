@@ -7,6 +7,7 @@ require_once '../config.php';
 require_once '../migrations.php';
 $conn = getConnection();
 setupSushi($conn);
+setupProductosNuevos($conn);
 
 function setupRecetasTable($conn) {
     $conn->exec("

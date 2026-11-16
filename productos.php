@@ -304,7 +304,7 @@ try {
             precioPremium: precioPremium
         };
         
-        document.getElementById('modal_titulo').textContent = (<?php echo $categoria_id; ?> == 5 ? 'Calzone ' : '') + nombre;
+        document.getElementById('modal_titulo').textContent = nombre; // en calzones el nombre ya trae "Calzone"
         document.getElementById('modal_cantidad').value = 1;
         document.getElementById('modal_comentarios').value = '';
         document.getElementById('modal_producto_simple').style.display = 'block';

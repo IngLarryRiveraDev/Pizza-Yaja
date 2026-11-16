@@ -29,12 +29,16 @@ $kOrd->execute([$ayer]); $oAyer = (int)$kOrd->fetch()['c'];
 // ── KPI: Órdenes activas ahora (pendiente + en_cocina)
 $kAct = $conn->query("SELECT COUNT(*) AS c FROM ordenes WHERE estado IN ('pendiente','en_cocina') {$SUCB}")->fetch()['c'];
 
-// ── Ventas últimos 7 días (para mini chart)
-$v7 = $conn->query("
+// ── Ventas de esta semana, de lunes a domingo (para mini chart)
+require_once 'includes/periodo.php';
+$lunesSemana = perLunes($hoy);
+$v7q = $conn->prepare("
   SELECT DATE(fecha_creacion) AS d, COALESCE(SUM(total),0) AS v
-  FROM ordenes WHERE fecha_creacion >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND {$DONE} {$SUCB}
+  FROM ordenes WHERE fecha_creacion >= ? AND fecha_creacion < ? AND {$DONE} {$SUCB}
   GROUP BY DATE(fecha_creacion) ORDER BY d ASC
-")->fetchAll();
+");
+$v7q->execute([$lunesSemana, date('Y-m-d', strtotime($lunesSemana . ' +7 days'))]);
+$v7 = $v7q->fetchAll();
 
 // ── Métodos de pago hoy (desde tabla pagos)
 $mPago = $conn->prepare("
@@ -79,9 +83,9 @@ function nfCRC($n) { return '₡' . number_format($n, 0); }
 // Preparar datos para Chart.js
 $chart7labels = [];
 $chart7data   = [];
-for($i = 6; $i >= 0; $i--) {
-    $d = date('Y-m-d', strtotime("-{$i} day"));
-    $chart7labels[] = date('d/m', strtotime($d));
+for($i = 0; $i < 7; $i++) {
+    $d = date('Y-m-d', strtotime($lunesSemana . " +{$i} day"));
+    $chart7labels[] = PER_DIAS_CORTO[$i] . ' ' . date('j', strtotime($d));
     $chart7data[$d] = 0;
 }
 foreach($v7 as $row) { $chart7data[$row['d']] = (float)$row['v']; }
@@ -136,7 +140,7 @@ $mpData   = json_encode(array_column($metodos, 'c'));
     <!-- Charts row -->
     <div class="eg3">
       <div class="ec nm">
-        <div class="ec-head">📈 Ventas — últimos 7 días</div>
+        <div class="ec-head">📈 Ventas — esta semana (lun a dom) <a href="ventas.php" style="margin-left:auto;font-size:12px;color:var(--orange);font-weight:600;text-decoration:none">Ver detalle →</a></div>
         <div class="ec-body">
           <div class="cw"><canvas id="cVentas"></canvas></div>
         </div>

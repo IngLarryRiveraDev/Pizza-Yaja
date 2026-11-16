@@ -9,6 +9,7 @@ try {
     setupSucursalColumns($conn);
     setupProductosColumns($conn);
     setupSushi($conn);
+    setupProductosNuevos($conn);
 
     $usuario   = $_POST['usuario']    ?? '';
     $contrasena = $_POST['contrasena'] ?? '';

@@ -15,6 +15,7 @@ require_once 'migrations.php';
 try {
     $conn = getConnection();
     setupSushi($conn);
+    setupProductosNuevos($conn);
 
     // Los batidos (7 y 8) no salen acá: se piden desde Cafetería
     $stmt = $conn->query("SELECT * FROM categorias WHERE id NOT IN (7, 8) ORDER BY orden ASC");

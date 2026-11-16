@@ -1237,6 +1237,17 @@
         <div class="menu-card">
           <div class="card-img"></div>
           <div class="card-body">
+            <div class="card-name">Birria (pequeño)</div>
+            <div class="card-desc">Calzone pequeño relleno de birria</div>
+            <div class="card-footer">
+              <div class="card-price">₡3,500</div>
+              <button class="add-btn" onclick='agregarAlCarrito("Calzone Birria (pequeño)", 3500)'>+</button>
+            </div>
+          </div>
+        </div>
+        <div class="menu-card">
+          <div class="card-img"></div>
+          <div class="card-body">
             <div class="card-name">Calzone Grande</div>
             <div class="card-desc">El más grande, perfecto para compartir o para los más hambrientos</div>
             <div class="card-footer">
@@ -1951,9 +1962,11 @@
     const SABORES_PREMIUM   = { 'Birria': 2000, 'Camarones': 2000, 'Mar y Tierra': 2000, 'Salsa Blanca': 2000 };
     const PIZZA_2X1_INCLUIDA = 'Jamón y Queso';
     const COSTO_CAMBIO_P1    = 1000;
+    const PREMIUM_CALZONE    = 1500; // en calzones el sabor premium cuesta menos (igual que PREMIUM_CALZONE en el POS)
 
     function recargoSabor(nombre) {
-      return SABORES_PREMIUM[nombre] || 0;
+      const recargo = SABORES_PREMIUM[nombre] || 0;
+      return recargo && saborPendiente && saborPendiente.esCalzone ? PREMIUM_CALZONE : recargo;
     }
 
     function opcionesHtml(opciones, conRecargo) {
@@ -1967,7 +1980,8 @@
     function abrirSelectorSabor(nombreBase, precio, opciones, cantidadSabores) {
       const esPizza = (opciones === SABORES_PIZZA);
       const es2x1   = esPizza && cantidadSabores === 2;
-      saborPendiente = { nombreBase, precio, esPizza, es2x1 };
+      const esCalzone = nombreBase.startsWith('Calzone');
+      saborPendiente = { nombreBase, precio, esPizza, es2x1, esCalzone };
 
       document.getElementById('saborTitulo').textContent = nombreBase;
       const cont = document.getElementById('saborSelectsContainer');

@@ -60,35 +60,52 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ── DATOS ─────────────────────────────────────────────────────────────────────
-$dias  = isset($_GET['dias']) && in_array($_GET['dias'], ['7','30','90']) ? (int)$_GET['dias'] : 30;
-$desde = date('Y-m-d', strtotime("-{$dias} day"));
-$DONE  = "estado = 'completado'";
+require_once 'includes/periodo.php';
+$P    = periodoActual();               // semana (lun–dom) o mes de calendario
+$R    = [$P['inicio'], $P['fin']];
+$DONE = "estado = 'completado'";
 
 // Gastos del período
 $gastos = $conn->prepare("
   SELECT g.*, u.nombre AS registrado_por
   FROM gastos g LEFT JOIN usuarios u ON g.usuario_id = u.id
-  WHERE g.fecha >= ? " . str_replace('sucursal', 'g.sucursal', $SUC) . "
+  WHERE g.fecha >= ? AND g.fecha < ? " . str_replace('sucursal', 'g.sucursal', $SUC) . "
   ORDER BY g.fecha DESC, g.created_at DESC
 ");
-$gastos->execute([$desde]);
+$gastos->execute($R);
 $gastosList = $gastos->fetchAll();
 
 // Totales por categoría
-$porCat = $conn->prepare("SELECT categoria, SUM(monto) AS total FROM gastos WHERE fecha >= ? {$SUC} GROUP BY categoria ORDER BY total DESC");
-$porCat->execute([$desde]);
+$porCat = $conn->prepare("SELECT categoria, SUM(monto) AS total FROM gastos WHERE fecha >= ? AND fecha < ? {$SUC} GROUP BY categoria ORDER BY total DESC");
+$porCat->execute($R);
 $porCatList = $porCat->fetchAll();
 
-// Total gastos
+// Total gastos (y del período anterior, para comparar)
 $totGastos = array_sum(array_column($gastosList, 'monto'));
+$gAntQ = $conn->prepare("SELECT COALESCE(SUM(monto),0) FROM gastos WHERE fecha >= ? AND fecha < ? {$SUC}");
+$gAntQ->execute([$P['antInicio'], $P['antFin']]);
+$totGastosAnt = (float)$gAntQ->fetchColumn();
 
 // Ventas del mismo período (para comparar)
 $SUCV = $suc_filtro !== 'ambas' ? "AND sucursal = '{$suc_filtro}'" : '';
-$venQ = $conn->prepare("SELECT COALESCE(SUM(total),0) AS v FROM ordenes WHERE fecha_creacion >= ? AND {$DONE} {$SUCV}");
-$venQ->execute([$desde]);
+$venQ = $conn->prepare("SELECT COALESCE(SUM(total),0) AS v FROM ordenes WHERE fecha_creacion >= ? AND fecha_creacion < ? AND {$DONE} {$SUCV}");
+$venQ->execute($R);
 $totVentas = (float)$venQ->fetch()['v'];
 
 $margen = $totVentas > 0 ? (($totVentas - $totGastos) / $totVentas) * 100 : 0;
+
+// Vista de mes: gastos, ventas y ganancia de cada semana (lunes a domingo)
+$porSemana = [];
+if($P['vista'] === 'mes') {
+    $vSemQ = $conn->prepare("SELECT COALESCE(SUM(total),0) FROM ordenes WHERE fecha_creacion >= ? AND fecha_creacion < ? AND {$DONE} {$SUCV}");
+    foreach($P['semanas'] as $s) {
+        $g = 0;
+        foreach($gastosList as $gs) if($gs['fecha'] >= $s['desde'] && $gs['fecha'] < $s['hasta']) $g += (float)$gs['monto'];
+        $vSemQ->execute([$s['desde'], $s['hasta']]);
+        $v = (float)$vSemQ->fetchColumn();
+        $porSemana[] = $s + ['gastos' => $g, 'ventas' => $v];
+    }
+}
 
 $CATS = ['ingredientes','servicios','personal','equipos','marketing','otros'];
 
@@ -111,14 +128,12 @@ $catMap = array_combine($CATS, $catColors);
     <button class="erp-hbg" onclick="erpHbg()">☰</button>
     <span class="erp-pg-title">💸 Gastos<?= $suc_filtro !== 'ambas' ? ' — '.(['cariari'=>'Cariari','guapiles'=>'Guápiles'][$suc_filtro]) : '' ?></span>
     <div class="erp-topbar-right">
-      <?php foreach(['7'=>'7 días','30'=>'30 días','90'=>'90 días'] as $v=>$l): ?>
-        <a href="?dias=<?= $v ?>" class="eb <?= $dias==$v?'ora':'gry' ?>" style="padding:5px 12px;font-size:12px"><?= $l ?></a>
-      <?php endforeach; ?>
       <button class="eb ora" onclick="abrirModal()">+ Registrar gasto</button>
     </div>
   </div>
 
   <div class="erp-content">
+    <?php periodoNav($P); ?>
 
     <!-- KPIs -->
     <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
@@ -126,7 +141,7 @@ $catMap = array_combine($CATS, $catColors);
         <div class="kpi-icon">💸</div>
         <div class="kpi-lbl">Total gastos</div>
         <div class="kpi-val">₡<?= number_format($totGastos,0) ?></div>
-        <div class="kpi-sub">últimos <?= $dias ?> días</div>
+        <div class="kpi-sub"><?= perVariacion($totGastos, $totGastosAnt, $P, true) ?: ($P['vista'] === 'semana' ? 'de lunes a domingo' : 'del mes') ?></div>
       </div>
       <div class="kpi grn">
         <div class="kpi-icon">💰</div>
@@ -183,6 +198,39 @@ $catMap = array_combine($CATS, $catColors);
         </div>
       </div>
     </div>
+
+    <?php if($P['vista'] === 'mes'): ?>
+    <!-- Mes: semana por semana (lunes a domingo) -->
+    <div class="ec">
+      <div class="ec-head">📅 Semana por semana <span style="font-size:12px;color:#888;font-weight:400;margin-left:6px">de lunes a domingo</span></div>
+      <div class="ec-body np">
+        <table class="et">
+          <thead><tr><th>Semana</th><th style="text-align:right">Gastos</th><th style="text-align:right">Ventas</th><th style="text-align:right">Ganancia</th><th></th></tr></thead>
+          <tbody>
+          <?php foreach($porSemana as $i => $s): $fut = $s['desde'] > $P['hoy']; ?>
+            <tr style="<?= $fut ? 'color:#bbb' : '' ?>">
+              <td>
+                <strong>Semana <?= $i + 1 ?></strong> <span style="color:#999;font-size:12px"><?= $s['etiqueta'] ?></span>
+                <?php if(!$s['completa']): ?><span style="font-size:11px;color:#999"> (parte de la semana)</span><?php endif; ?>
+              </td>
+              <td style="text-align:right;color:var(--red);font-weight:700"><?= $fut ? '—' : '₡' . number_format($s['gastos'],0) ?></td>
+              <td style="text-align:right"><?= $fut ? '—' : '₡' . number_format($s['ventas'],0) ?></td>
+              <td style="text-align:right;font-weight:700;color:<?= ($s['ventas'] - $s['gastos']) >= 0 ? '#2e7d32' : 'var(--red)' ?>"><?= $fut ? '—' : '₡' . number_format($s['ventas'] - $s['gastos'],0) ?></td>
+              <td style="text-align:right"><?php if($s['desde'] <= $P['hoy']): ?><a class="eb gry" style="padding:3px 10px;font-size:12px" href="<?= perUrl($P, ['vista'=>'semana', 'ref'=>$s['desde']]) ?>">Ver semana</a><?php endif; ?></td>
+            </tr>
+          <?php endforeach; ?>
+            <tr style="background:#fff8f0">
+              <td><strong>Total del mes</strong></td>
+              <td style="text-align:right;font-weight:800;color:var(--red)">₡<?= number_format($totGastos,0) ?></td>
+              <td style="text-align:right;font-weight:800">₡<?= number_format($totVentas,0) ?></td>
+              <td style="text-align:right;font-weight:800;color:<?= ($totVentas - $totGastos) >= 0 ? '#2e7d32' : 'var(--red)' ?>">₡<?= number_format($totVentas - $totGastos,0) ?></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Lista de gastos -->
     <div class="ec">

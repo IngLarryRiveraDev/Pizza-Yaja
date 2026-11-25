@@ -90,6 +90,7 @@ a { text-decoration: none; color: inherit; }
 .kpi.blu::before { background: var(--blue); }
 .kpi.pur::before { background: var(--purple); }
 .kpi.red::before { background: var(--red); }
+.kpi.gry::before { background: #9e9e9e; }
 .kpi-lbl  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 8px; }
 .kpi-val  { font-size: 26px; font-weight: 800; line-height: 1; }
 .kpi-sub  { font-size: 12px; color: var(--muted); margin-top: 6px; }
